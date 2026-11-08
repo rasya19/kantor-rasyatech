@@ -1,0 +1,8 @@
+{
+  "name": "Kantor AI PT Rasyatech Digital Zenith",
+  "description": "Pusat komando virtual mandiri 3 divisi (Siput PAUD, Siput Posyandu, Content Creator) milik Bos Ismanto.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

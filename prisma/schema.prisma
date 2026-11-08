@@ -1,0 +1,117 @@
+// Prisma Schema untuk Kantor AI PT Rasyatech Digital Zenith
+// Provider: PostgreSQL via Neon DB (Serverless)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum DraftStatus {
+  PENDING
+  APPROVED
+  REVISED
+}
+
+model KnowledgeBase {
+  id          String   @id @default(uuid())
+  productName String   @map("product_name")
+  category    String
+  title       String
+  content     String   @db.Text
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("knowledge_base")
+}
+
+model DraftTask {
+  id             String      @id @default(uuid())
+  division       String
+  staffName      String      @map("staff_name")
+  triggerReason  String      @map("trigger_reason")
+  contentTitle   String      @map("content_title")
+  fullContent    String      @map("full_content") @db.Text
+  status         DraftStatus @default(PENDING)
+  targetPlatform String?     @map("target_platform")
+  scheduledTime  String?     @map("scheduled_time")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  updatedAt      DateTime    @updatedAt @map("updated_at")
+
+  @@map("draft_tasks")
+}
+
+model OfficeTicket {
+  id          String   @id @default(uuid())
+  division    String
+  category    String
+  title       String
+  description String   @db.Text
+  status      String   @default("OPEN")
+  notes       String   @default("") @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  drafts      OfficeDraft[]
+}
+
+model OfficeDraft {
+  id        String   @id
+  data      Json
+  ticketId  String?
+  ticket    OfficeTicket? @relation(fields: [ticketId], references: [id], onDelete: SetNull)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  events    OfficeDraftEvent[]
+}
+
+model OfficeDraftEvent {
+  id        String   @id @default(uuid())
+  draftId   String
+  draft     OfficeDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  action    String
+  notes     String   @default("") @db.Text
+  data      Json
+  createdAt DateTime @default(now())
+}
+
+model OfficeJob {
+  id          String   @id @default(uuid())
+  division    String
+  staffId     String
+  title       String
+  instruction String   @db.Text
+  status      String   @default("QUEUED")
+  ticketId    String?
+  draftId     String?
+  error       String?  @db.Text
+  claimToken  String?
+  leaseUntil  DateTime?
+  contentFlowId String?
+  contentFlow ContentFlow? @relation(fields: [contentFlowId], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model ContentFlow {
+  id            String      @id
+  sourceDraftId String?     @unique
+  createdAt     DateTime    @default(now())
+  jobs          OfficeJob[]
+}
+
+model VideoJob {
+  id         String   @id @default(uuid())
+  draftId    String   @unique
+  prompt     String   @db.Text
+  status     String   @default("QUEUED")
+  error      String?  @db.Text
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([status, createdAt])
+}
