@@ -4,6 +4,8 @@ import { workflowClient } from './api/workflowClient';
 import type { DraftEvent, OfficeJob, OfficeDivision, Ticket, TicketCategory, TicketDivision, TicketStatus, VideoJob, WorkDraft } from './workflowTypes';
 import { OfficeScene } from './components/OfficeScene';
 import { InstallApp } from './components/InstallApp';
+import { BusinessCenter } from './components/BusinessCenter';
+import { GroundedReport } from './components/GroundedReport';
 import { STAFF } from './staff';
 
 const field = 'w-full rounded-lg border border-slate-700 bg-slate-950 p-3 text-base text-white';
@@ -14,13 +16,13 @@ const labels: Record<TicketStatus, string> = {
   OPEN: 'Baru', IN_PROGRESS: 'Sedang ditangani', WAITING: 'Menunggu', RESOLVED: 'Selesai',
 };
 const divisions = [
-  { id: 'paud', title: 'Siput PAUD', staff: 'Arka · Lisa · Dewi', focus: 'Laporan klien, kendala PAUD, panduan dan draf jawaban.' },
-  { id: 'posyandu', title: 'Siput Posyandu', staff: 'Dr. AI · Budi · Sari', focus: 'Laporan aplikasi kader, pertanyaan, dan alur pelaporan.' },
-  { id: 'creator', title: 'Content Creator', staff: 'Trendy · Script-AI · Clipper', focus: 'Ide, hook, naskah 9:16, caption dan peluang monetisasi.' },
-  { id: 'engineer', title: 'Web App Engineer', staff: 'Dev-Ops · Code-AI · Architect', focus: 'Analisis arsitektur, database, dan rencana teknis.' },
+  { id: 'paud', title: 'Siput PAUD', staff: 'Arka · Lisa · Dewi · Mitra PAUD', focus: 'Laporan klien, panduan, draf jawaban dan rencana penjualan.' },
+  { id: 'posyandu', title: 'Siput Posyandu', staff: 'Dr. AI · Budi · Sari · Mitra Posyandu', focus: 'Laporan aplikasi kader, panduan dan rencana penjualan.' },
+  { id: 'creator', title: 'Content Creator', staff: 'Trendy · Script-AI · Clipper · Strategi Konten', focus: 'Strategi pemasaran, ide, naskah 9:16 dan caption.' },
+  { id: 'engineer', title: 'Web App Engineer', staff: 'Dev-Ops · Code-AI · Architect · Riset Produk · QA Produk', focus: 'Riset peluang, rencana produk, pengujian dan arsitektur.' },
   { id: 'cyber', title: 'Cyber Security', staff: 'Sentinel · Guard-AI · Audit', focus: 'Laporan keamanan, usulan audit log, perlindungan data, dan mitigasi risiko.' },
 ] as const;
-type Tab = 'dashboard' | 'map' | 'drafts' | 'publication' | 'staff' | 'engineer' | 'cyber' | 'history' | 'tickets' | 'content' | 'guide' | 'mandate';
+type Tab = 'dashboard' | 'map' | 'drafts' | 'publication' | 'staff' | 'engineer' | 'cyber' | 'history' | 'tickets' | 'content' | 'guide' | 'mandate' | 'business';
 
 function OfficeNavigation({ tab, pendingCount, navigate }: {
   tab: Tab;
@@ -29,6 +31,7 @@ function OfficeNavigation({ tab, pendingCount, navigate }: {
 }) {
   const items: [Tab, string][] = [
     ['dashboard', '📊 Dashboard Utama'],
+    ['business', '💼 Peluang & Keuangan'],
     ['map', '🗺️ Denah Isometrik'],
     ['drafts', `✅ Daftar Persetujuan (${pendingCount ?? '?'})`],
     ['publication', '📣 Siap Publikasi'],
@@ -76,6 +79,7 @@ export default function App() {
   const [topic, setTopic] = useState('');
   const [content, setContent] = useState('');
   const [revision, setRevision] = useState('');
+  const [draftActionError, setDraftActionError] = useState<{ id: string; message: string } | null>(null);
   const [mandateDivision, setMandateDivision] = useState<WorkDraft['division']>('paud');
   const [mandate, setMandate] = useState('');
   const [online, setOnline] = useState(navigator.onLine);
@@ -175,6 +179,7 @@ export default function App() {
     setContent(selectedDraft?.content || '');
     setRevision('');
     setEvents([]);
+    setDraftActionError(null);
   }, [selectedDraftId, selectedDraft?.updatedAt]);
 
   useEffect(() => {
@@ -187,7 +192,7 @@ export default function App() {
     return () => { active = false; };
   }, [selectedDraftId, selectedDraft?.updatedAt, selectedDraft?.status, selectedDraft?.division]);
 
-  async function run(action: () => Promise<void>, success?: string) {
+  async function run(action: () => Promise<void>, success?: string, onError?: (error: string) => void) {
     setError('');
     setNotice('');
     setBusy(true);
@@ -195,7 +200,9 @@ export default function App() {
       await action();
       if (success) setNotice(success);
     } catch (err) {
-      setError(message(err));
+      const errorMessage = message(err);
+      setError(errorMessage);
+      onError?.(errorMessage);
     } finally {
       setBusy(false);
     }
@@ -238,8 +245,11 @@ export default function App() {
 
   function updateDraft(action: 'EDIT' | 'APPROVE' | 'REVISE') {
     if (!selectedDraft) return;
+    setDraftActionError(null);
     if (action !== 'EDIT' && content !== selectedDraft.content) {
-      setError('Simpan perubahan isi terlebih dahulu sebelum menyetujui atau meminta revisi.');
+      const errorMessage = 'Simpan perubahan isi terlebih dahulu sebelum menyetujui atau meminta revisi.';
+      setError(errorMessage);
+      setDraftActionError({ id: selectedDraft.id, message: errorMessage });
       return;
     }
     void run(async () => {
@@ -247,10 +257,10 @@ export default function App() {
       addDraft(result.draft);
       if (action === 'APPROVE' && selectedDraft.contentPackageVersion === 1) await loadVideos();
     }, action === 'APPROVE'
-      ? selectedDraft.contentPackageVersion === 1
+      ? selectedDraft.contentPackageVersion === 1 && !selectedDraft.sourceDraftId
         ? 'Paket disetujui. Periksa status video di Siap Publikasi; belum ada konten yang dipublikasikan.'
         : 'Draf disetujui untuk tindak lanjut manual. Belum ada pesan dikirim atau konten dipublikasikan.'
-      : 'Draf tersimpan dan menunggu persetujuan.');
+      : 'Draf tersimpan dan menunggu persetujuan.', (errorMessage) => setDraftActionError({ id: selectedDraft.id, message: errorMessage }));
   }
 
   return (
@@ -283,9 +293,10 @@ export default function App() {
         {error && <div role="alert" className="rounded-lg border border-red-800 bg-red-950 p-3 text-sm text-red-200">{error}</div>}
         {notice && <div role="status" className="rounded-lg border border-teal-800 bg-teal-950 p-3 text-sm text-teal-200">{notice}</div>}
 
+        {tab === 'business' && <BusinessCenter onDraft={addDraft} jobs={jobs} onRetry={sceneProps.onRetry} />}
         {tab === 'dashboard' && <section className={panel}>
           <h2 className="text-xl font-bold">Dashboard Utama</h2>
-          <p className="text-sm text-slate-300">Lima divisi siap menyusun laporan saat diminta. Sistem tidak memantau produk atau melayani klien secara otomatis.</p>
+          <p className="text-sm text-slate-300">Lima divisi menyusun draf dari mandat atau siklus riset mingguan. Sistem tidak memantau produk atau melayani klien secara otomatis.</p>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="rounded-lg bg-slate-950 p-4"><span className="text-slate-400">Laporan klien</span><p className="text-2xl font-bold">{draftsAvailable ? tickets.length : '—'}</p></div>
             <div className="rounded-lg bg-slate-950 p-4"><span className="text-slate-400">Menunggu persetujuan</span><p className="text-2xl font-bold">{pendingCount ?? '—'}</p></div>
@@ -305,7 +316,7 @@ export default function App() {
             </div>
             <p className="mt-2 text-xs text-slate-400">{jobs ? '*Dari 100 tugas terakhir yang selesai atau gagal.' : 'Status antrean tidak tersedia.'}</p>
           </div>
-          <p className="text-xs text-slate-400">Jadwal harian hanya berjalan saat server, database, dan penyedia AI tersedia; layanan 24/7 memerlukan hosting dan pemantauan terpisah.</p>
+          <p className="text-xs text-slate-400">Jadwal mingguan hanya berjalan saat server, database, dan penyedia AI tersedia; layanan 24/7 memerlukan hosting dan pemantauan terpisah.</p>
         </section>}
 
         {(tab === 'map' || tab === 'staff') && <section className={panel}>
@@ -324,7 +335,7 @@ export default function App() {
         {(tab === 'engineer' || tab === 'cyber' || tab === 'mandate') && <section className={panel}>
           <h2 className="text-lg font-bold">{tab === 'engineer' ? 'Ruang Kerja Web App Engineer' : tab === 'cyber' ? 'Ruang Cyber Security' : 'Mandat Bos'}</h2>
           <p className="text-sm text-slate-300">Mandat menghasilkan laporan untuk pimpinan, bukan akses repository, perubahan kode, eksekusi query, atau deployment. Kode mentah hanya disiapkan bila diminta secara eksplisit.</p>
-          <p className="text-xs text-amber-300">Instruksi dikirim ke Gemini atau Copilot sesuai konfigurasi. Jangan sertakan kode sensitif, kredensial, data anak, data kesehatan, atau data pribadi.</p>
+          <p className="text-xs text-amber-300">Instruksi dikirim melalui OpenRouter ke model yang dikonfigurasi. Jangan sertakan kode sensitif, kredensial, data anak, data kesehatan, atau data pribadi.</p>
           {tab === 'cyber' && <div className="space-y-2 rounded-lg border border-amber-800 bg-amber-950/40 p-4 text-sm text-amber-200">
             <p><strong>Sentinel · Guard-AI · Audit:</strong> susun rekomendasi pemantauan, audit log, perlindungan data, dan mitigasi berdasarkan informasi yang diberikan.</p>
             <p>Belum terhubung ke log, database produk, pemindai keamanan, atau sistem eksternal. Tidak ada pemantauan atau audit otomatis. Jangan masukkan kredensial, data pribadi, atau log mentah sensitif.</p>
@@ -380,7 +391,7 @@ export default function App() {
           <div className="grid gap-5 lg:grid-cols-2">
             <form className={panel} onSubmit={submitTicket}>
               <h2 className="text-lg font-bold">Catat laporan dari WhatsApp Business</h2>
-              <p className="text-sm text-amber-300">Input manual. Jangan masukkan nomor telepon, nama klien, kredensial, data anak, atau data kesehatan. Setelah disimpan, isi laporan otomatis masuk antrean dan dikirim ke penyedia AI yang dikonfigurasi (Gemini atau Copilot).</p>
+              <p className="text-sm text-amber-300">Input manual. Jangan masukkan nomor telepon, nama klien, kredensial, data anak, atau data kesehatan. Setelah disimpan, isi laporan masuk antrean dan dikirim melalui OpenRouter.</p>
               <label className="block text-sm">Produk
                 <select className={field} value={division} onChange={(e) => setDivision(e.target.value as TicketDivision)}>
                   <option value="paud">Siput PAUD</option><option value="posyandu">Siput Posyandu</option>
@@ -439,8 +450,8 @@ export default function App() {
           <h2 className="text-lg font-bold">Divisi konten kreator</h2>
           <p className="text-sm text-slate-300">Buat ide, naskah, caption, dan usulan monetisasi. Hasilnya bukan riset tren langsung dan tidak menjamin penghasilan.</p>
           <p className="text-sm text-teal-300">Topik → Trendy → Script-AI → Clipper → persetujuan Bos. Hasil antarstaf diteruskan otomatis; publikasi tetap manual.</p>
-          <p className="text-xs text-amber-300">Topik dikirim ke Gemini atau Copilot sesuai konfigurasi. Jangan sertakan data pribadi atau rahasia.</p>
-          <p className="text-sm text-slate-400">Draf harian dijadwalkan setelah pukul 06.00 WIB ketika server aktif. Jika server baru aktif setelahnya, sistem mencoba membuat draf hari itu. Penyedia AI dan database harus tersedia.</p>
+          <p className="text-xs text-amber-300">Topik dikirim melalui OpenRouter. Jangan sertakan data pribadi atau rahasia.</p>
+          <p className="text-sm text-slate-400">Strategi konten mingguan disiapkan setelah riset peluang berhasil. Alur Trendy → Script-AI → Clipper tetap tersedia melalui mandat; jadwal harian lama tidak lagi berjalan otomatis.</p>
           <form onSubmit={(event) => {
             event.preventDefault();
             void run(async () => {
@@ -458,9 +469,8 @@ export default function App() {
 
         {tab === 'publication' && <section className={panel}>
           <h2 className="text-lg font-bold">Siap Publikasi</h2>
-          <p className="text-sm text-slate-300">Paket yang disetujui dapat dibuat menjadi video AI vertikal 10 detik. Video harus diperiksa dan dipublikasikan manusia; tidak ada unggahan otomatis.</p>
-          <p className="text-xs text-amber-300">Gemini Omni 720p sekitar US$0,70 per video, belum termasuk biaya lain atau pajak. Harga dapat berubah; periksa billing Google. Paket dikirim ke Google dan tidak disamarkan otomatis.</p>
-          {videos === null ? <p className="text-sm text-amber-300">Status video tidak tersedia.</p> : !videos.enabled && <p className="text-sm text-amber-300">Pembuatan video belum aktif. Atur VIDEO_ENABLED=true setelah memeriksa biaya dan akses, lalu mulai ulang server.</p>}
+          <p className="text-sm text-slate-300">Video yang sudah ada dapat ditinjau dan diunduh. Pembuatan video baru dinonaktifkan selama migrasi ke OpenRouter; tidak ada unggahan otomatis.</p>
+          {videos === null && <p className="text-sm text-amber-300">Status video tidak tersedia.</p>}
           <p className="text-xs text-slate-400">Daftar ini tidak menandakan konten sudah terbit. Laporan lama tanpa format paket baru tidak otomatis dimasukkan.</p>
           {!draftsAvailable ? <p className="text-sm text-amber-300">Daftar tidak tersedia. Periksa koneksi dan muat ulang.</p>
             : readyForPublication.length === 0 ? <p className="text-sm text-slate-400">Belum ada paket yang disetujui.</p>
@@ -484,14 +494,15 @@ export default function App() {
               <h2 className="text-lg font-bold">{selectedDraft.title}</h2>
               {selectedDraft.status === 'INTERMEDIATE' && <p className="text-sm text-teal-300">Tahap ini sudah diteruskan otomatis. Persetujuan diperlukan pada hasil akhir Clipper.</p>}
               {selectedDraft.contentPackageVersion === 1 && <p className="text-sm text-teal-300">Paket konten: judul, konsep, hook, naskah, caption, target platform, tata letak visual, dan hal yang perlu diverifikasi.</p>}
-              {selectedDraft.contentPackageVersion === 1 && <p className="text-xs text-amber-300">Jika video aktif, Setujui otomatis mengirim paket ke Google untuk membuat video 10 detik berbayar (sekitar US$0,70; harga dapat berubah). Paket dengan tugas video tidak dapat diedit; buat paket baru untuk perubahan.</p>}
-              <p className="text-xs text-slate-400">{selectedDraft.ai ? `Draf AI: ${selectedDraft.ai.provider === 'copilot' ? 'Copilot' : 'Gemini'} · ${selectedDraft.ai.model}` : 'Penyedia/model untuk draf lama tidak tercatat.'} Pengeditan manual dapat mengubah isi.</p>
+              {selectedDraft.contentPackageVersion === 1 && <p className="text-xs text-amber-300">Pembuatan video baru sedang dinonaktifkan. Persetujuan tidak membuat video.</p>}
+              {selectedDraft.sourceDraftId && <div className="text-sm text-teal-300">Dibuat berdasarkan riset mingguan. <button className="underline" onClick={() => setSelectedDraftId(selectedDraft.sourceDraftId!)}>Buka riset dan sumber</button>. Draf turunan dapat berisi dugaan; verifikasi sebelum digunakan.</div>}
+              <p className="text-xs text-slate-400">{selectedDraft.ai ? `Draf AI: ${selectedDraft.ai.provider === 'copilot' ? 'Copilot' : selectedDraft.ai.provider === 'openrouter' ? 'OpenRouter' : 'Gemini'} · ${selectedDraft.ai.model}` : 'Penyedia/model untuk draf lama tidak tercatat.'} Pengeditan manual dapat mengubah isi.</p>
               <p className="text-sm text-amber-300">Verifikasi fakta dan keamanan sebelum persetujuan. Persetujuan tidak mengirim WhatsApp, memperbaiki kode, atau mempublikasikan konten.</p>
-              <label className="block text-sm">Isi laporan
+              {selectedDraft.grounding ? <><p className="text-xs text-amber-300">Laporan riset dan sumbernya tidak dapat diubah; jalankan riset baru jika diperlukan.</p><GroundedReport draft={selectedDraft} /></> : <label className="block text-sm">Isi laporan
                 <textarea className={field} rows={16} maxLength={30000} value={content} onChange={(e) => setContent(e.target.value)} />
-              </label>
+              </label>}
               <div className="flex flex-wrap gap-2">
-                <button className={secondary} disabled={busy || selectedDraft.status === 'INTERMEDIATE' || !!selectedVideo} onClick={() => updateDraft('EDIT')}>Simpan edit</button>
+                <button className={secondary} disabled={busy || selectedDraft.status === 'INTERMEDIATE' || !!selectedVideo || !!selectedDraft.grounding} onClick={() => updateDraft('EDIT')}>Simpan edit</button>
                 <button className={button} disabled={busy || selectedDraft.status !== 'PENDING'} onClick={() => updateDraft('APPROVE')}>Setujui</button>
                 {continuation?.id === selectedDraft.id && continuation.eligible && <button className={secondary} disabled={busy} onClick={() => void run(async () => {
                   await workflowClient.continueContent(selectedDraft.id);
@@ -516,19 +527,20 @@ export default function App() {
                 </> : videos.enabled ? <button className={button} disabled={busy} onClick={() => void run(async () => {
                   await workflowClient.createVideo(selectedDraft.id);
                   await loadVideos();
-                }, 'Video dimasukkan ke antrean. Periksa status dan billing Google.')}>Buat video berbayar</button> : <p className="text-sm text-amber-300">Video belum diaktifkan.</p>}
+                }, 'Video dimasukkan ke antrean. Periksa status dan biaya penyedia.')}>Buat video berbayar</button> : <p className="text-sm text-amber-300">Pembuatan video baru dinonaktifkan selama migrasi ke OpenRouter.</p>}
               </div>}
               <label className="block text-sm">Arahan revisi AI
                 <textarea className={field} rows={2} maxLength={4000} value={revision} onChange={(e) => setRevision(e.target.value)} />
               </label>
-              <p className="text-xs text-amber-300">Arahan dan isi laporan dikirim ke Gemini atau Copilot sesuai konfigurasi saat revisi.</p>
-              <button className={secondary} disabled={busy || selectedDraft.status === 'INTERMEDIATE' || !!selectedVideo || !revision.trim()} onClick={() => updateDraft('REVISE')}>Revisi</button>
+              <p className="text-xs text-amber-300">Arahan dan isi laporan dikirim melalui OpenRouter saat revisi.</p>
+              {draftActionError?.id === selectedDraft.id && <p role="alert" className="rounded-lg border border-red-800 bg-red-950 p-3 text-sm text-red-200">Aksi draf gagal: {draftActionError.message}</p>}
+              <button className={secondary} disabled={busy || selectedDraft.status === 'INTERMEDIATE' || !!selectedVideo || !!selectedDraft.grounding || !revision.trim()} onClick={() => updateDraft('REVISE')}>Revisi</button>
               {events.length > 0 && <div className="space-y-2"><h3 className="font-bold">Riwayat versi tersimpan</h3>
                 {events.map((event) => <details key={event.id} className="rounded-lg border border-slate-700 p-3 text-sm">
                   <summary>{event.action} · {new Date(event.createdAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })} WIB</summary>
                   {event.data.ai && <p className="mt-2 text-slate-400">AI: {event.data.ai.provider} · {event.data.ai.model}</p>}
                   {event.notes && <p className="mt-2 text-amber-300">Arahan: {event.notes}</p>}
-                  <pre className="mt-2 whitespace-pre-wrap font-sans">{event.data.content}</pre>
+                  {event.data.grounding ? <GroundedReport draft={event.data} /> : <pre className="mt-2 whitespace-pre-wrap font-sans">{event.data.content}</pre>}
                 </details>)}
               </div>}
             </>}

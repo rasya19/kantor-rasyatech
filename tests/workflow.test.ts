@@ -3,7 +3,6 @@ import assert from 'node:assert/strict';
 import express from 'express';
 import workflowRoutes from '../server/routes/workflowRoutes';
 import { jakartaSchedule, generateReport, WorkflowError } from '../server/services/workflowService';
-import { aiClient } from '../server/config/gemini';
 
 test('daily scheduler uses 06:00 Asia/Jakarta and the correct local date', () => {
   assert.deepEqual(jakartaSchedule(new Date('2026-11-07T22:59:59Z')), { date: '2026-11-08', due: false });
@@ -11,9 +10,12 @@ test('daily scheduler uses 06:00 Asia/Jakarta and the correct local date', () =>
   assert.deepEqual(jakartaSchedule(new Date('2026-11-08T17:00:00Z')), { date: '2026-11-09', due: false });
 });
 
-test('missing Gemini configuration is reported instead of generating a fake report', { skip: !!aiClient }, async () => {
+test('missing OpenRouter configuration is reported instead of generating a fake report', async (t) => {
+  const previous = process.env.OPENROUTER_API_KEY;
+  delete process.env.OPENROUTER_API_KEY;
+  t.after(() => { if (previous !== undefined) process.env.OPENROUTER_API_KEY = previous; });
   await assert.rejects(generateReport('Uji laporan'), (error: unknown) =>
-    error instanceof WorkflowError && error.status === 503 && error.message.includes('GEMINI_API_KEY'));
+    error instanceof WorkflowError && error.status === 503 && error.message.includes('OPENROUTER_API_KEY'));
 });
 
 test('workflow API rejects invalid requests without reporting success', async (context) => {

@@ -115,3 +115,14 @@ model VideoJob {
 
   @@index([status, createdAt])
 }
+
+model FinanceTransaction {
+  id        String   @id @default(uuid())
+  product   String
+  kind      String
+  amount    Int
+  date      String
+  note      String   @default("")
+  voidedAt  DateTime?
+  createdAt DateTime @default(now())
+}

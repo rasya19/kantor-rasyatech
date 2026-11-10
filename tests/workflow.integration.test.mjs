@@ -2,8 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 
-process.env.GEMINI_API_KEY = 'test-key-not-used';
-const { aiClient } = await import('../server/config/gemini.ts');
+process.env.OPENROUTER_API_KEY = 'test-key-not-used';
 const { prisma } = await import('../server/lib/prisma.ts');
 const { default: routes } = await import('../server/routes/workflowRoutes.ts');
 
@@ -16,11 +15,14 @@ test('ticket, AI report, approval and revision preserve linked snapshots', async
   let generationStarted;
   let generationGate = new Promise((resolve) => { releaseGeneration = resolve; });
   let started = new Promise((resolve) => { generationStarted = resolve; });
-  context.mock.method(aiClient.models, 'generateContent', async () => {
+  const originalFetch = globalThis.fetch;
+  context.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (!String(url).startsWith('https://openrouter.ai/api/v1/')) return originalFetch(url, options);
+    if (String(url).endsWith('/key')) return Response.json({ data: { limit: 5, limit_reset: 'monthly', limit_remaining: 5 } });
     const number = ++generation;
     generationStarted();
     await generationGate;
-    return { text: `Laporan uji ${number}` };
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: `Laporan uji ${number}` } }] });
   });
   prisma.officeTicket.create = async ({ data }) => {
     const now = new Date();
@@ -75,7 +77,7 @@ test('ticket, AI report, approval and revision preserve linked snapshots', async
   assert.equal(created.status, 201);
   assert.equal(created.data.draft.ticketId, 'ticket-1');
   assert.equal(created.data.draft.status, 'PENDING');
-  assert.equal(created.data.draft.ai.provider, 'gemini');
+  assert.equal(created.data.draft.ai.provider, 'openrouter');
   const id = created.data.draft.id;
   const approved = await call(`/drafts/${id}`, 'PATCH', { action: 'APPROVE' });
   assert.equal(approved.data.draft.status, 'APPROVED');
@@ -91,12 +93,12 @@ test('ticket, AI report, approval and revision preserve linked snapshots', async
   const revised = await revising;
   assert.equal(revised.data.draft.status, 'PENDING');
   assert.equal(revised.data.draft.content, 'Laporan uji 2');
-  assert.equal(revised.data.draft.ai.provider, 'gemini');
+  assert.equal(revised.data.draft.ai.provider, 'openrouter');
   snapshot = await call('/activity', 'GET');
   assert.equal(snapshot.data.divisions.find((item) => item.division === 'paud').revising, 0);
   const history = await call(`/drafts/${id}/events`, 'GET');
   assert.equal(history.data.events.length, 3);
-  assert.equal(history.data.events[0].data.ai.provider, 'gemini');
+  assert.equal(history.data.events[0].data.ai.provider, 'openrouter');
   assert.equal(history.data.events[0].notes, 'Lebih ringkas');
   assert.equal(history.data.events[1].data.status, 'APPROVED');
   const cyber = await call('/drafts/mandate', 'POST', { division: 'cyber', instruction: 'Susun rencana audit log yang aman.' });

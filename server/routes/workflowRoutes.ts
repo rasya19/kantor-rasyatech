@@ -48,12 +48,29 @@ function parseDraft(value: Prisma.JsonValue): WorkDraft {
     throw new Error('Invalid stored draft data');
   }
   let ai: WorkDraft['ai'];
+  let grounding: WorkDraft['grounding'];
+  if (value.sourceDraftId !== undefined && typeof value.sourceDraftId !== 'string') throw new Error('Invalid source draft ID');
+  if (value.grounding !== undefined) {
+    const item = value.grounding;
+    if (!item || Array.isArray(item) || typeof item !== 'object' || typeof item.searchSuggestions !== 'string' ||
+        !Array.isArray(item.sources) || !Array.isArray(item.citations)) throw new Error('Invalid stored grounding data');
+    const sources = item.sources.map((source) => {
+      if (!source || Array.isArray(source) || typeof source !== 'object' || typeof source.url !== 'string' || typeof source.title !== 'string' || !/^https?:\/\//i.test(source.url)) throw new Error('Invalid grounding source');
+      return { url: source.url, title: source.title };
+    });
+    const citations = item.citations.map((citation) => {
+      if (!citation || Array.isArray(citation) || typeof citation !== 'object' || typeof citation.text !== 'string' ||
+          !Array.isArray(citation.sourceIndexes) || !citation.sourceIndexes.every((index) => typeof index === 'number' && Number.isInteger(index) && index >= 0 && index < sources.length)) throw new Error('Invalid grounding citation');
+      return { text: citation.text, sourceIndexes: citation.sourceIndexes as number[] };
+    });
+    grounding = { searchSuggestions: item.searchSuggestions, sources, citations };
+  }
   if (value.contentPackageVersion !== undefined && (value.contentPackageVersion !== 1 || value.division !== 'creator')) {
     throw new Error('Invalid stored content package version');
   }
   if (value.ai !== undefined) {
     if (!value.ai || Array.isArray(value.ai) || typeof value.ai !== 'object' ||
-        (value.ai.provider !== 'gemini' && value.ai.provider !== 'copilot') || typeof value.ai.model !== 'string') {
+        (value.ai.provider !== 'gemini' && value.ai.provider !== 'copilot' && value.ai.provider !== 'openrouter') || typeof value.ai.model !== 'string') {
       throw new Error('Invalid stored AI provider data');
     }
     ai = { provider: value.ai.provider, model: value.ai.model };
@@ -61,7 +78,8 @@ function parseDraft(value: Prisma.JsonValue): WorkDraft {
   return {
     id: value.id, ticketId: value.ticketId, division: value.division, title: value.title,
     content: value.content, status: value.status, createdAt: value.createdAt, updatedAt: value.updatedAt, ...(ai ? { ai } : {}),
-    ...(value.contentPackageVersion === 1 ? { contentPackageVersion: 1 } : {}),
+    ...(value.contentPackageVersion === 1 ? { contentPackageVersion: 1 } : {}), ...(grounding ? { grounding } : {}),
+    ...(typeof value.sourceDraftId === 'string' ? { sourceDraftId: value.sourceDraftId } : {}),
   };
 }
 
@@ -120,8 +138,7 @@ router.get('/videos', asyncRoute(async (_req, res) => {
 }));
 
 router.post('/videos/:draftId', asyncRoute(async (req, res) => {
-  if (!videoEnabled()) throw new WorkflowError('Video belum diaktifkan. Atur VIDEO_ENABLED=true setelah memahami biaya.', 409);
-  if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY') throw new WorkflowError('GEMINI_API_KEY belum dikonfigurasi.', 503);
+  if (!videoEnabled()) throw new WorkflowError('Pembuatan video dinonaktifkan selama migrasi ke OpenRouter; tidak ada video yang dikirim.', 409);
   try {
     const job = await prisma.$transaction(async (tx) => {
       const record = await tx.officeDraft.findUnique({ where: { id: req.params.draftId } });
@@ -183,15 +200,12 @@ router.patch('/drafts/:id', asyncRoute(async (req, res) => {
   const record = await prisma.officeDraft.findUnique({ where: { id: req.params.id } });
   if (!record) throw new WorkflowError('Draf tidak ditemukan.', 404);
   const previous = parseDraft(record.data);
+  if (previous.grounding && action !== 'APPROVE') throw new WorkflowError('Laporan riset bersumber tidak dapat diedit atau direvisi. Buat riset baru.', 409);
   if (previous.status === 'INTERMEDIATE') throw new WorkflowError('Tahap ini sudah diteruskan otomatis. Periksa dan setujui hasil akhir Clipper.', 409);
   if (previous.contentPackageVersion === 1 && action !== 'APPROVE' && await prisma.videoJob.findUnique({ where: { draftId: previous.id } })) {
     throw new WorkflowError('Paket sudah memiliki tugas video dan tidak dapat diubah. Buat paket baru untuk perubahan.', 409);
   }
   if (action === 'APPROVE' && previous.status !== 'PENDING') throw new WorkflowError('Draf tidak menunggu persetujuan.', 409);
-  if (action === 'APPROVE' && previous.contentPackageVersion === 1 && videoEnabled() &&
-      (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY === 'MY_GEMINI_API_KEY')) {
-    throw new WorkflowError('Video diaktifkan tetapi GEMINI_API_KEY belum dikonfigurasi.', 503);
-  }
   const update = async (notes: string) => {
     let content = previous.content;
     let ai = previous.ai;
@@ -215,7 +229,7 @@ router.patch('/drafts/:id', asyncRoute(async (req, res) => {
       });
       if (updated.count !== 1) throw new WorkflowError('Draf berubah di sesi lain. Muat ulang sebelum mencoba lagi.', 409);
       await transaction.officeDraftEvent.create({ data: { draftId: draft.id, action, notes, data: snapshot } });
-      if (action === 'APPROVE' && draft.contentPackageVersion === 1 && videoEnabled()) {
+      if (action === 'APPROVE' && draft.contentPackageVersion === 1 && !draft.sourceDraftId && videoEnabled()) {
         await transaction.videoJob.create({ data: { draftId: draft.id, prompt: draft.content } });
       }
     });

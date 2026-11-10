@@ -7,6 +7,8 @@ import type { OfficeJob, WorkDraft } from '../../src/workflowTypes';
 import { generateReportWithDetails } from './workflowService';
 import { forwardContentStage } from './contentFlow';
 import { contentPackageInstruction, contentPackageProblems } from './contentPackage';
+import { generateProductResearch } from './businessResearch';
+import { forwardOpportunityResearch, isWeeklyResearch, sourceForOpportunityJob } from './opportunityFlow';
 
 const publicFields = {
   id: true, division: true, staffId: true, title: true, status: true,
@@ -49,6 +51,21 @@ export async function processNextJob(): Promise<void> {
     try {
       const staff = getStaff(job.staffId);
       if (!staff || !isOfficeDivision(job.division) || staff.division !== job.division) throw new Error('Penugasan staf tidak valid.');
+      if (isWeeklyResearch(job.id)) {
+        if (job.staffId !== 'market_research' || job.division !== 'engineer') throw new Error('Penugasan riset mingguan tidak valid.');
+        const draft = await generateProductResearch('opportunities', `job-${job.id}`);
+        const snapshot: Prisma.InputJsonObject = { ...draft };
+        await prisma.$transaction(async (transaction) => {
+          const updated = await transaction.officeJob.updateMany({
+            where: { id: job.id, status: 'RUNNING', claimToken: token, leaseUntil: { gt: new Date() } },
+            data: { status: 'DONE', draftId: draft.id, claimToken: null, leaseUntil: null },
+          });
+          if (updated.count !== 1) throw new Error('Hak pemrosesan tugas telah berakhir.');
+          await transaction.officeDraft.create({ data: { id: draft.id, data: snapshot, events: { create: { action: 'CREATED', data: snapshot } } } });
+          await forwardOpportunityResearch(transaction, job.id, draft);
+        });
+        return;
+      }
       const isContentPackage = job.division === 'creator' && (!job.contentFlowId || job.staffId === 'clipper');
       const { content, ai } = await generateReportWithDetails(`Anda ${staff.name}, staf ${staff.role}. Buat laporan untuk pimpinan.\n${job.instruction}${isContentPackage ? `\n\n${contentPackageInstruction}` : ''}`, job.division, AbortSignal.timeout(90000));
       if (isContentPackage) {
@@ -58,7 +75,7 @@ export async function processNextJob(): Promise<void> {
       const now = new Date().toISOString();
       const draft: WorkDraft = {
         id: `job-${job.id}`, division: job.division, ticketId: job.ticketId,
-        title: job.title, content, ai, ...(isContentPackage ? { contentPackageVersion: 1 as const } : {}), status: job.contentFlowId && job.staffId !== 'clipper' ? 'INTERMEDIATE' : 'PENDING', createdAt: now, updatedAt: now,
+        title: job.title, content, ai, ...(sourceForOpportunityJob(job.id) ? { sourceDraftId: sourceForOpportunityJob(job.id) } : {}), ...(isContentPackage ? { contentPackageVersion: 1 as const } : {}), status: job.contentFlowId && job.staffId !== 'clipper' ? 'INTERMEDIATE' : 'PENDING', createdAt: now, updatedAt: now,
       };
       const snapshot: Prisma.InputJsonObject = { ...draft };
       await prisma.$transaction(async (transaction) => {

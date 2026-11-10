@@ -1,10 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { aiClient } from '../config/gemini';
 import { prisma } from '../lib/prisma';
 import { trackActivity } from './activityService';
-import { selectAi } from './aiRouting';
-import { generateCopilotReport } from './copilotReport';
+import { generateOpenRouter, openRouterModel, OpenRouterError } from './openrouter';
 import { createContentFlow } from './contentFlow';
 import { contentPackageInstruction, contentPackageProblems } from './contentPackage';
 import type { OfficeDivision, Ticket, WorkDraft } from '../../src/workflowTypes';
@@ -17,51 +15,13 @@ export class WorkflowError extends Error {
 
 const systemInstruction = 'Anda staf Kantor AI Rasyatech. Buat laporan profesional dalam bahasa Indonesia untuk ditinjau pimpinan sebelum tindakan apa pun. Bedakan fakta yang diberikan dari dugaan dan tulis informasi yang masih dibutuhkan. Jangan mengarang fitur produk, menampilkan kode mentah kecuali diminta secara eksplisit, atau mengklaim telah mengakses sistem, memperbaiki bug, mengirim pesan, meneliti tren langsung, atau mempublikasikan konten. Untuk laporan klien sertakan ringkasan, prioritas usulan, langkah investigasi aman, dan draf jawaban WhatsApp. Untuk konten sertakan ide video 9:16, hook 3 detik, naskah, caption, tagar, rencana monetisasi tanpa janji penghasilan, dan hal yang perlu diverifikasi. Pernyataan pemilik tentang fitur PAUD: 1-klik sinkronisasi Dapodik, rekap presensi otomatis, manajemen SPP, dan pendaftaran PSE Komdigi; informasi ini perlu diverifikasi sebelum dinyatakan sebagai fakta kepada klien.';
 
-export async function generateReportWithDetails(instruction: string, division?: OfficeDivision, signal?: AbortSignal): Promise<{ content: string; ai: { provider: 'gemini' | 'copilot'; model: string } }> {
-  let ai;
+export async function generateReportWithDetails(instruction: string, division?: OfficeDivision, signal?: AbortSignal): Promise<{ content: string; ai: { provider: 'openrouter'; model: string } }> {
   try {
-    ai = selectAi(division);
+    const result = await generateOpenRouter(instruction, systemInstruction, division, signal);
+    return { content: result.content, ai: { provider: 'openrouter', model: openRouterModel(division) } };
   } catch (error) {
-    throw new WorkflowError(error instanceof Error ? error.message : 'Konfigurasi AI tidak valid.', 503);
-  }
-  if (ai.provider === 'gemini' && !aiClient) {
-    throw new WorkflowError('GEMINI_API_KEY belum dikonfigurasi. Draf AI tidak dibuat.', 503);
-  }
-  if (ai.provider === 'copilot' && !process.env.COPILOT_GITHUB_TOKEN) {
-    throw new WorkflowError('COPILOT_GITHUB_TOKEN belum dikonfigurasi. Draf AI tidak dibuat.', 503);
-  }
-  const credits = Number(process.env.COPILOT_MAX_AI_CREDITS);
-  if (ai.provider === 'copilot' && (!Number.isFinite(credits) || credits <= 0)) {
-    throw new WorkflowError('COPILOT_MAX_AI_CREDITS harus diisi angka positif.', 503);
-  }
-  try {
-    if (ai.provider === 'copilot') {
-      return { content: await generateCopilotReport(instruction, systemInstruction, ai.model, signal), ai };
-    }
-    if (!aiClient) throw new Error('Gemini tidak tersedia.');
-    const response = await aiClient.models.generateContent({
-      model: ai.model,
-      contents: instruction,
-      config: {
-        abortSignal: signal,
-        systemInstruction,
-      },
-    });
-    const text = response.text?.trim();
-    if (!text) throw new Error('Gemini mengembalikan respons kosong.');
-    return { content: text, ai };
-  } catch (error) {
-    if (ai.provider === 'gemini') {
-      const status = typeof error === 'object' && error !== null && 'status' in error && typeof error.status === 'number' ? error.status : undefined;
-      console.error(`[Workflow] Gemini gagal; status HTTP: ${status ?? 'tidak tersedia'}.`);
-      if (status === 404) throw new WorkflowError(`Model Gemini "${ai.model}" tidak tersedia untuk permintaan ini. Periksa GEMINI_MODEL dan akses model pada proyek Google AI.`, 502);
-      if (status === 400 || status === 401 || status === 403) throw new WorkflowError('Gemini menolak permintaan. Periksa kunci API, izin proyek, dan konfigurasi model.', 502);
-      if (status === 429) throw new WorkflowError('Kuota Gemini atau batas permintaan tercapai. Periksa kuota dan tagihan, lalu coba lagi.', 429);
-      if (status === 500 || status === 502 || status === 503 || status === 504) throw new WorkflowError('Layanan Gemini sedang mengalami gangguan. Coba lagi nanti.', 503);
-      throw new WorkflowError('Gemini gagal membuat laporan. Periksa koneksi, konfigurasi, dan log server; coba lagi.', 502);
-    }
-    console.error('[Workflow] Copilot gagal membuat laporan:', error);
-    throw new WorkflowError('Copilot gagal membuat laporan. Periksa konfigurasi, akses, kuota dan log server; coba lagi.', 502);
+    if (error instanceof OpenRouterError) throw new WorkflowError(error.message, error.status);
+    throw error;
   }
 }
 

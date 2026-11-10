@@ -2,9 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 
-process.env.GEMINI_API_KEY = 'test-key-not-used';
+process.env.OPENROUTER_API_KEY = 'test-key-not-used';
 const { prisma } = await import('../server/lib/prisma.ts');
-const { aiClient } = await import('../server/config/gemini.ts');
 const { default: routes } = await import('../server/routes/jobRoutes.ts');
 const { processNextJob, listJobs } = await import('../server/services/jobService.ts');
 const { runScheduledCreator } = await import('../server/services/workflowService.ts');
@@ -49,7 +48,11 @@ test('worker fences claims, persists one draft and reports generation failure', 
   let started;
   const gate = new Promise((resolve) => { release = resolve; });
   const began = new Promise((resolve) => { started = resolve; });
-  context.mock.method(aiClient.models, 'generateContent', async () => { started(); await gate; return { text: 'Laporan sintetis' }; });
+  context.mock.method(globalThis, 'fetch', async (url) => {
+    if (url.endsWith('/key')) return Response.json({ data: { limit: 5, limit_reset: 'monthly', limit_remaining: 5 } });
+    started(); await gate;
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'Laporan sintetis' } }] });
+  });
   replace(context, prisma.officeJob, 'findFirst', async () => job.status === 'QUEUED' ? { ...job } : null);
   replace(context, prisma.officeJob, 'updateMany', async ({ where, data }) => {
     if (!where.id || where.id !== job.id || where.status !== job.status || (where.claimToken && where.claimToken !== job.claimToken)) return { count: 0 };

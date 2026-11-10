@@ -25,9 +25,13 @@ test('division routing defaults to Gemini and rejects invalid Copilot configurat
   assert.throws(() => selectAi('engineer'), /belum dikonfigurasi/);
 });
 
-test('Copilot does not silently fall back to Gemini without a token', async (t) => {
-  env(t, { AI_COPILOT_DIVISIONS: 'cyber', COPILOT_MODEL: 'test-model', COPILOT_GITHUB_TOKEN: '' });
-  await assert.rejects(generateReportWithDetails('instruksi sintetis', 'cyber'), /COPILOT_GITHUB_TOKEN/);
+test('active workflow uses OpenRouter even when legacy Copilot configuration is set', async (t) => {
+  env(t, { AI_COPILOT_DIVISIONS: 'cyber', COPILOT_MODEL: 'test-model', COPILOT_GITHUB_TOKEN: '', OPENROUTER_API_KEY: 'synthetic-key' });
+  t.mock.method(globalThis, 'fetch', async (url: string | URL | Request) => String(url).endsWith('/key')
+    ? Response.json({ data: { limit: 5, limit_reset: 'monthly', limit_remaining: 5 } })
+    : Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'Laporan sintetis' } }] }));
+  const report = await generateReportWithDetails('instruksi sintetis', 'cyber');
+  assert.equal(report.ai.provider, 'openrouter');
 });
 
 test('Copilot session disallows tools and deletes its session', async (t) => {

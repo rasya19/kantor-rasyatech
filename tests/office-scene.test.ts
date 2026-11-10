@@ -21,7 +21,7 @@ test('office characters reflect only their queue status', () => {
   assert.match(html, /aria-label="Dewi, Tugas gagal"/);
   assert.match(html, /aria-label="Audit, Siaga"/);
   assert.equal((html.match(/office-person office-person-working/g) ?? []).length, 1);
-  assert.equal((html.match(/class="office-workstation /g) ?? []).length, 15);
+  assert.equal((html.match(/class="office-workstation /g) ?? []).length, 20);
 });
 
 test('unavailable queue does not portray staff as active or idle', () => {

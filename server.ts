@@ -3,10 +3,10 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import workflowRoutes from './server/routes/workflowRoutes';
-import { startCreatorScheduler } from './server/services/workflowService';
 import jobRoutes from './server/routes/jobRoutes';
 import { startJobWorker } from './server/services/jobService';
-import { startVideoWorker } from './server/services/videoService';
+import businessRoutes from './server/routes/businessRoutes';
+import { startOpportunityScheduler } from './server/services/opportunityFlow';
 
 dotenv.config();
 
@@ -22,6 +22,7 @@ app.use(express.json());
 // Mount Modular API Routes
 app.use('/api/workflow', workflowRoutes);
 app.use('/api/office-work', jobRoutes);
+app.use('/api/business', businessRoutes);
 
 // Health check endpoint
 app.get('/api/health', (_req: Request, res: Response) => {
@@ -29,9 +30,8 @@ app.get('/api/health', (_req: Request, res: Response) => {
 });
 
 // Start Autonomous Proactive Background Cron Scanner
-startCreatorScheduler();
+startOpportunityScheduler();
 startJobWorker();
-startVideoWorker();
 
 // Production / Dev Vite Server Mounting
 async function bootstrapServer() {

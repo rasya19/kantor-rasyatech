@@ -4,41 +4,34 @@ Kantor AI membantu admin mencatat laporan klien, menyusun laporan untuk pimpinan
 
 ## Batasan penting
 
+- Menu **Peluang & Keuangan** menyediakan riset produk menggunakan OpenRouter web search, alur mingguan lintas divisi, dan catatan transaksi manual. Token dan pencarian web dapat dikenakan biaya bahkan jika permintaan gagal. Hasil dan sumber harus diverifikasi, dan tidak ada penghasilan yang dijamin.
+- Catatan transaksi disimpan dalam database yang dikonfigurasi (termasuk Neon jika digunakan), bukan dikirim ke AI. Jangan memasukkan informasi pribadi atau rahasia. Ringkasan hanya menghitung pemasukan dikurangi pengeluaran yang dicatat, bukan akuntansi lengkap, bukti pembayaran, atau rekonsiliasi bank. Transaksi yang salah dapat dibatalkan dan dicatat ulang; riwayat pembatalan tetap tersimpan.
 - Aplikasi **tidak terhubung ke WhatsApp Business atau GitHub** dan tidak memperbaiki bug, mengirim pesan, menjalankan query, atau mempublikasikan konten. Persetujuan berarti siap untuk tindak lanjut manual, bukan bukti tindakan telah terjadi.
-- Gemini maupun Copilot pada integrasi ini tidak mengakses repository, data aplikasi, shell, atau tren terbaru. Semua fakta, fitur, naskah, saran teknis, dan klaim produk harus diverifikasi manusia.
+- Selain riset web pada menu **Peluang & Keuangan**, integrasi AI tidak mengakses web, repository, data aplikasi, atau shell. Semua fakta, fitur, naskah, saran teknis, dan klaim produk harus diverifikasi manusia.
 - Divisi Cyber Security hanya menyusun usulan dari informasi yang diberikan. Belum ada koneksi ke audit log, pemantauan keamanan, atau pemindai kerentanan; draf bukan bukti audit atau mitigasi telah dilakukan.
-- Jangan masukkan nama, nomor telepon, token, kata sandi, data anak, data kesehatan, atau data pribadi lainnya. Teks laporan, catatan dan mandat dikirim ke Gemini atau Copilot sesuai konfigurasi divisi. Aplikasi tidak menyamarkan data otomatis.
+- Jangan masukkan nama, nomor telepon, token, kata sandi, data anak, data kesehatan, atau data pribadi lainnya. Teks laporan, catatan dan mandat dikirim ke OpenRouter dan penyedia model atau pencarian yang dipilih. Aplikasi tidak menyamarkan data otomatis.
 - Tidak ada autentikasi pengguna. Secara default server hanya mendengarkan `127.0.0.1`. Jangan membuka akses jaringan/internet atau menggunakannya bersama banyak orang sebelum menambahkan autentikasi, otorisasi, perlindungan data, dan pengamanan hosting.
 - Jadwal bukan jaminan layanan 24/7: server harus hidup, dan koneksi database serta penyedia AI yang dipilih harus tersedia.
 
-## Video AI opsional
+## Video AI
 
-Video dinonaktifkan secara default. Untuk mengaktifkannya, verifikasi akses `gemini-omni-1.2-flash`, billing dan kuota di Google, lalu tambahkan `VIDEO_ENABLED=true` pada `.env` lokal dan mulai ulang server. Jangan bagikan kunci. Setiap persetujuan paket konten baru kemudian mengantrekan satu video generatif 10 detik, 720p, 9:16, dengan audio. Google menyatakan harga 720p US$0,07 per detik (sekitar US$0,70 untuk 10 detik), belum termasuk biaya lain atau pajak; [periksa harga terbaru](https://aistudio.google.com/docs/pricing) sebelum mengaktifkan. Tidak ada batas biaya harian otomatis.
-
-Paket konten dikirim ke Google dan tidak disamarkan otomatis. Hasil MP4 disimpan di folder lokal `video-storage`; Neon hanya menyimpan antrean dan metadata. Folder tidak disinkronkan antarserver dan harus dicadangkan serta dilindungi. File tidak diunggah atau dipublikasikan otomatis. Periksa video, suara, klaim, hak cipta dan teks sebelum digunakan. Jika server berhenti, hasil gagal, atau permintaan habis waktu, biaya mungkin sudah terjadi; sistem tidak mengulang generasi otomatis. Periksa billing sebelum membuat paket baru. Untuk mematikan video set `VIDEO_ENABLED=false` dan mulai ulang server; tugas yang masih dalam antrean berhenti diproses sampai diaktifkan kembali.
+Pembuatan video baru dinonaktifkan selama migrasi ke OpenRouter, termasuk jika `VIDEO_ENABLED=true`. Persetujuan tidak mengantrekan video. Durasi dinamis dan batas US$0,10 per video belum diterapkan. Video lama tetap tersimpan di folder lokal `video-storage`, bukan di Neon; cadangkan dan lindungi folder tersebut. Publikasi tetap manual.
 
 ## Persiapan
 
 1. Gunakan Node.js yang didukung oleh Vite 8 (Node.js 20.19+ atau 22.12+).
 2. Jalankan `npm install`. `package-lock.json` adalah lockfile npm yang digunakan proyek.
-3. Salin `.env.example` menjadi `.env`, lalu isi `DATABASE_URL` PostgreSQL/Neon dan `GEMINI_API_KEY`. Jangan mengirimkan kredensial ke chat atau melakukan commit file `.env`. Opsional: atur `GEMINI_MODEL` sesuai model yang tersedia di akun Anda.
+3. Salin `.env.example` menjadi `.env`, lalu isi `DATABASE_URL` PostgreSQL/Neon dan `OPENROUTER_API_KEY`. Jangan mengirimkan kredensial ke chat atau melakukan commit file `.env`. Atur limit kunci OpenRouter maksimal US$5 dan reset bulanan di dashboard OpenRouter.
 4. Jalankan `npm run db:generate` dan `npm run db:migrate`.
 5. Jalankan `npm run dev`, lalu buka `http://127.0.0.1:3000`.
 
-Setelah mengubah `.env`, hentikan dan mulai ulang server agar konfigurasi baru digunakan. Jika Gemini mengembalikan 404, periksa `GEMINI_MODEL` dan pilih model yang tersedia untuk proyek Google AI Anda; model pada daftar dapat berubah atau tidak tersedia untuk pembuatan konten. Periksa juga kuota bila menerima 429. Setelah diperbaiki, gunakan **Coba lagi** pada tugas yang gagal di denah.
+Setelah mengubah `.env`, hentikan dan mulai ulang server agar konfigurasi baru digunakan. Jika menerima 402 atau 429, periksa saldo, batas dan kuota OpenRouter serta biaya sebelum mencoba ulang. Setelah diperbaiki, gunakan **Coba lagi** pada tugas yang gagal di denah.
 
-## Provider AI dan Copilot opsional
+## Provider AI dan batas biaya
 
-Secara default semua divisi tetap memakai Gemini. Copilot SDK tidak memerlukan perubahan database dan hanya digunakan bila divisi dipilih secara eksplisit di konfigurasi server. Konfigurasi ini tidak menghubungkan repository atau alat kerja: semua alat bawaan, MCP dan alat kustom diblokir, dan permintaan izin ditolak. Tidak ada perubahan kode, audit keamanan nyata, atau deployment.
+Semua draf baru dan riset aktif menggunakan OpenRouter. Default `OPENROUTER_MODEL` adalah `google/gemini-2.5-flash`; opsional atur `OPENROUTER_MODEL_ENGINEER`, `OPENROUTER_MODEL_CYBER`, `OPENROUTER_MODEL_PAUD`, `OPENROUTER_MODEL_POSYANDU`, atau `OPENROUTER_MODEL_CREATOR`. `OPENROUTER_BASE_URL`, jika diisi, harus `https://openrouter.ai/api/v1`. Metadata provider lama tetap ditampilkan untuk draf historis.
 
-Untuk mengaktifkan Copilot pada divisi tertentu:
-
-1. Pastikan akun/organisasi dan token GitHub memang berhak menggunakan Copilot SDK; lihat [autentikasi resmi](https://docs.github.com/en/copilot/how-tos/copilot-sdk/auth/authenticate). Jangan bagikan token dalam chat atau commit.
-2. Pada `.env` isi `COPILOT_GITHUB_TOKEN` secara lokal, `COPILOT_MAX_AI_CREDITS` dengan angka positif, dan `COPILOT_MODEL` dengan ID model yang benar-benar tersedia bagi akun. Batas kredit per sesi bersifat **soft limit**, bukan batas biaya yang pasti.
-3. Isi `AI_COPILOT_DIVISIONS`, misalnya `engineer,cyber`. Nilai yang didukung: `paud`, `posyandu`, `creator`, `engineer`, `cyber`. Divisi lain tetap memakai Gemini. Model per divisi dapat ditentukan dengan `COPILOT_MODEL_ENGINEER`, `COPILOT_MODEL_CYBER`, `COPILOT_MODEL_PAUD`, `COPILOT_MODEL_POSYANDU`, atau `COPILOT_MODEL_CREATOR`; bila kosong dipakai `COPILOT_MODEL`.
-4. Restart server. Uji menggunakan instruksi sintetis yang tidak sensitif. Provider/model ditampilkan di laporan dan riwayat versi baru. Draf lama tidak memiliki informasi ini.
-
-Jika model, token, runtime, kredit, atau penyedia gagal, tugas ditandai gagal dan bisa dicoba ulang manual; aplikasi tidak diam-diam mengalihkan data atau biaya ke provider lain. Pilihan model berdasarkan divisi, **bukan** penilaian otomatis tingkat kesulitan atau review model kedua. Model, kuota, penggunaan dan biayanya bergantung pada akun GitHub; periksa sebelum mengaktifkan. Sesi Copilot menggunakan direktori sementara terpisah yang dibersihkan setelah runtime berhenti; proses yang berhenti paksa dapat meninggalkan data sesi sementara dan perlu diperiksa operator.
+Sebelum setiap permintaan AI, aplikasi memeriksa bahwa limit kunci maksimal US$5, reset bulanan, dan masih tersedia. Pemeriksaan ini tidak memasang limit di OpenRouter; operator harus mengaturnya sendiri. Ini juga bukan jaminan batas total tagihan: permintaan paralel, keterlambatan pencatatan, biaya lain, atau kunci lain dapat memengaruhi total. Periksa harga model dan biaya pencarian web serta penggunaan akun sebelum mencoba lagi.
 
 Untuk database baru, migrasi membuat tabel skema lama dan tabel workflow baru. Untuk database lama yang **sudah memiliki** tabel `knowledge_base`, `draft_tasks`, dan enum `DraftStatus` sesuai skema awal proyek, cadangkan database terlebih dahulu, verifikasi kesamaan skema, lalu tandai migrasi awal sebagai sudah diterapkan dengan `npx prisma migrate resolve --applied 20261107000000_existing_schema` sebelum `npm run db:migrate`. Jangan menandai migrasi sebagai diterapkan jika skemanya tidak cocok. Untuk database yang sudah berisi tabel lain atau punya riwayat migrasi berbeda, tinjau dan lakukan baseline bersama administrator database sebelum deploy; jangan gunakan reset atau `db push --force-reset`.
 
@@ -69,6 +62,8 @@ Tiket baru otomatis diberikan ke staf sesuai produk dan kategori; mandat dan kon
 
 ## Jadwal konten
 
-Scheduler memeriksa waktu Asia/Jakarta pada setiap awal menit. Mulai pukul 06.00 WIB, ia memasukkan satu tugas konten harian untuk Trendy ke antrean; jika server baru aktif setelahnya, ia mencoba saat startup. Kegagalan menjadwalkan dicatat dan dicoba kembali sekitar 10 menit kemudian. Jika pemrosesan tugas gagal, gunakan **Coba lagi** di denah. ID harian mencegah tugas ganda pada beberapa instance. Hasil tetap menunggu persetujuan. Scheduler tidak mencari tren aktual dan tidak menerbitkan konten.
+Jadwal harian konten lama diganti dengan siklus peluang mingguan. Mulai Senin pukul 06.00 WIB, atau saat server pertama kali aktif setelahnya dalam minggu yang sama, scheduler mengantrekan satu riset peluang aplikasi di Indonesia menggunakan OpenRouter web search. Tidak ada pengejaran minggu-minggu yang terlewat. Setelah riset berhasil, satu tugas draf masing-masing dibuat untuk divisi PAUD, Posyandu, engineer, konten dan cyber; semua hasil menunggu persetujuan. ID tugas mencegah siklus ganda. Tugas yang gagal ditampilkan di menu Peluang & Keuangan dan dicoba ulang hanya atas permintaan; percobaan ulang dapat berbiaya. Server, database dan provider harus tersedia.
+
+Satu siklus menggunakan satu permintaan pencarian dan maksimal lima permintaan AI lanjutan; kegagalan pun dapat ditagih. Periksa harga model, biaya pencarian web, limit dan billing OpenRouter sebelum menjalankan server. Untuk menghentikan penjadwalan siklus baru, atur `OPPORTUNITY_SCHEDULE_ENABLED=false` di `.env` dan mulai ulang server; tugas yang sudah masuk antrean tetap akan diproses. Matikan server bila perlu menghentikan pemrosesan antrean. Hasil draf bukan bukti penjualan, pengujian, perubahan kode, audit, publikasi, atau pendapatan.
 
 Topik konten baru dan mandat baru kepada Trendy diteruskan otomatis ke Script-AI lalu Clipper. Hasil dua tahap awal tersimpan sebagai tahap perantara; hanya hasil akhir Clipper menunggu persetujuan. Jika suatu tahap gagal, tugas berikutnya tidak dibuat sampai tahap tersebut berhasil dicoba lagi. Laporan Trendy lama yang telah disetujui dapat diteruskan sekali secara manual dari halaman laporan. Mandat langsung ke Script-AI atau Clipper tetap tugas mandiri. [Panduan workflow](WORKFLOW.md) menjelaskan langkah operasional.

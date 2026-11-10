@@ -11,7 +11,7 @@ export function videoPath(id: string): string {
 }
 
 export function videoEnabled(): boolean {
-  return process.env.VIDEO_ENABLED === 'true';
+  return false;
 }
 
 let busy = false;

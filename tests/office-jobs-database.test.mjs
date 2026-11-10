@@ -4,9 +4,8 @@ import { randomUUID } from 'node:crypto';
 import express from 'express';
 
 test('synthetic ticket, failed job, retry and draft persist in PostgreSQL', { skip: process.env.OFFICE_DB_TEST !== '1' }, async (context) => {
-  process.env.GEMINI_API_KEY = 'test-key-not-used';
+  process.env.OPENROUTER_API_KEY = 'test-key-not-used';
   const { prisma } = await import('../server/lib/prisma.ts');
-  const { aiClient } = await import('../server/config/gemini.ts');
   const { default: routes } = await import('../server/routes/jobRoutes.ts');
   const { processNextJob } = await import('../server/services/jobService.ts');
   const marker = `synthetic-${randomUUID()}`;
@@ -14,7 +13,12 @@ test('synthetic ticket, failed job, retry and draft persist in PostgreSQL', { sk
   let jobId;
   const originalFindFirst = prisma.officeJob.findFirst;
   const originalUpdateMany = prisma.officeJob.updateMany;
-  context.mock.method(aiClient.models, 'generateContent', async () => ({ text: 'Laporan sintetis untuk pengujian.' }));
+  const originalFetch = globalThis.fetch;
+  context.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (!String(url).startsWith('https://openrouter.ai/api/v1/')) return originalFetch(url, options);
+    if (String(url).endsWith('/key')) return Response.json({ data: { limit: 5, limit_reset: 'monthly', limit_remaining: 5 } });
+    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'Laporan sintetis untuk pengujian.' } }] });
+  });
   const app = express();
   app.use(express.json());
   app.use('/api/office-work', routes);

@@ -39,7 +39,13 @@ export interface WorkDraft {
   title: string;
   content: string;
   contentPackageVersion?: 1;
-  ai?: { provider: 'gemini' | 'copilot'; model: string };
+  sourceDraftId?: string;
+  grounding?: {
+    searchSuggestions: string;
+    sources: { title: string; url: string }[];
+    citations: { text: string; sourceIndexes: number[] }[];
+  };
+  ai?: { provider: 'gemini' | 'copilot' | 'openrouter'; model: string };
   status: 'PENDING' | 'APPROVED' | 'INTERMEDIATE';
   createdAt: string;
   updatedAt: string;
