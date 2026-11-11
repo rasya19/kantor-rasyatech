@@ -2,10 +2,10 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import express from 'express';
 
-test('weekly research creates one connected job per division and preserves approval boundaries', { skip: process.env.OFFICE_DB_TEST !== '1' }, async (context) => {
+test('weekly research creates project-specific specialist jobs and preserves approval boundaries', { skip: process.env.OFFICE_DB_TEST !== '1' }, async (context) => {
   process.env.OPENROUTER_API_KEY = 'test-key-not-used';
   const { prisma } = await import('../server/lib/prisma.ts');
-  const { scheduleWeeklyResearch, weeklyResearchId } = await import('../server/services/opportunityFlow.ts');
+  const { opportunityTasks, scheduleWeeklyResearch, weeklyResearchId } = await import('../server/services/opportunityFlow.ts');
   const { processNextJob } = await import('../server/services/jobService.ts');
   const { default: routes } = await import('../server/routes/workflowRoutes.ts');
   const date = new Date('2001-01-08T00:00:00Z');
@@ -42,9 +42,14 @@ test('weekly research creates one connected job per division and preserves appro
     await processNextJob();
     assert.equal((await prisma.officeJob.findUnique({ where: { id } })).status, 'DONE');
     const jobs = await prisma.officeJob.findMany({ where: { id: { startsWith: `${id}:` } } });
-    assert.equal(jobs.length, 5);
-    assert.deepEqual(new Set(jobs.map((job) => job.division)), new Set(['paud', 'posyandu', 'engineer', 'creator', 'cyber']));
+    assert.equal(jobs.length, 11);
+    assert.ok(jobs.every((job) => job.status === 'PAUSED'));
+    assert.deepEqual(
+      Object.fromEntries(['paud', 'posyandu', 'engineer', 'creator', 'cyber'].map((division) => [division, jobs.filter((job) => job.division === division).length])),
+      { paud: 1, posyandu: 1, engineer: 3, creator: 3, cyber: 3 },
+    );
     for (const job of jobs) {
+      await prisma.officeJob.update({ where: { id: job.id }, data: { status: 'QUEUED' } });
       prisma.officeJob.findFirst = async () => originalFind({ where: { id: job.id, status: 'QUEUED' } });
       await processNextJob();
       const done = await prisma.officeJob.findUnique({ where: { id: job.id } });
@@ -76,7 +81,7 @@ test('weekly research creates one connected job per division and preserves appro
     prisma.officeJob.findFirst = originalFind;
     prisma.officeJob.updateMany = originalUpdate;
     if (oldVideo === undefined) delete process.env.VIDEO_ENABLED; else process.env.VIDEO_ENABLED = oldVideo;
-    await prisma.officeDraft.deleteMany({ where: { id: { in: [`job-${id}`, ...['sales_paud', 'sales_posyandu', 'qa', 'strategist', 'guard_ai'].map((staff) => `job-${id}:${staff}`)] } } });
+    await prisma.officeDraft.deleteMany({ where: { id: { in: [`job-${id}`, ...opportunityTasks.map((task) => `job-${id}:${task.taskId}`)] } } });
     await prisma.officeJob.deleteMany({ where: { OR: [{ id }, { id: failedId }, { id: { startsWith: `${id}:` } }] } });
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await prisma.$disconnect();

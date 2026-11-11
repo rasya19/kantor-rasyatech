@@ -1,4 +1,4 @@
-import { aiClient } from '../config/gemini';
+import { generateOpenRouter } from './openrouter';
 
 export interface StaffMember {
   id: string;
@@ -278,13 +278,17 @@ ${hasilDraf}
   };
 }
 
-export async function dispatchToGemini(taskPrompt: string, staffHint?: string, divisionHint?: string): Promise<DraftPayload> {
-  if (!aiClient) {
-    return buildFallbackDraft(taskPrompt, staffHint);
-  }
+function divisionForHint(staffHint?: string, divisionHint?: string): 'paud' | 'posyandu' | 'creator' {
+  const division = divisionHint?.toLowerCase() ?? '';
+  if (division.includes('posyandu')) return 'posyandu';
+  if (division.includes('creator') || division.includes('konten')) return 'creator';
+  const staff = staffHint ? STAFF_REGISTRY[staffHint.toLowerCase()] : undefined;
+  return staff?.divisionId ?? 'paud';
+}
 
-  try {
-    const systemInstruction = `Kamu adalah sistem "Kantor AI Otonom & Proaktif" untuk PT Rasyatech Digital Zenith (milik Bos Ismanto).
+export async function dispatchToOpenRouter(taskPrompt: string, staffHint?: string, divisionHint?: string): Promise<DraftPayload> {
+  const requestedDivisionId = divisionForHint(staffHint, divisionHint);
+  const systemInstruction = `Kamu adalah sistem "Kantor AI Otonom & Proaktif" untuk PT Rasyatech Digital Zenith.
 Kamu bertindak sebagai pengelola utama dari 3 divisi virtual:
 1. DIVISI SIPUT PAUD (SaaS Pendidikan): Arka (Research), Lisa (Copywriter), Dewi (Publisher)
 2. DIVISI SIPUT POSYANDU (SaaS Kesehatan): Dr. AI (Research), Budi (Guidance), Sari (Outreach)
@@ -307,22 +311,20 @@ ${divisionHint ? `Petunjuk divisi: ${divisionHint}` : ''}
 
 Tentukan divisi & staf penanggung jawab, buat draf matang, lalu susun format laporan resmi.`;
 
-    const response = await Promise.race([
-      aiClient.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: promptMessage,
-        config: { systemInstruction },
-      }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('AI generation timeout')), 6500)),
-    ]);
+  const response = await generateOpenRouter(
+    promptMessage,
+    systemInstruction,
+    requestedDivisionId,
+    AbortSignal.timeout(90_000),
+  );
 
-    const fullText = response.text || '';
-    const reportMatch = fullText.match(/---[\s\S]*?\[LAPORAN DRAFT KANTOR AI\][\s\S]*?\[AKSI BOS: APPROVE[\s\S]*?---/i);
+  const fullText = response.content;
+  const reportMatch = fullText.match(/---[\s\S]*?\[LAPORAN DRAFT KANTOR AI\][\s\S]*?\[AKSI BOS: APPROVE[\s\S]*?---/i);
 
     let matchedDivision = 'DIVISI SIPUT PAUD';
     let matchedStaff = 'Arka (AI Research PAUD)';
     let staffId = 'arka';
-    let divisionId: 'paud' | 'posyandu' | 'creator' = 'paud';
+    let divisionId: 'paud' | 'posyandu' | 'creator' = requestedDivisionId;
 
     const divMatch = fullText.match(/Divisi:\s*(.+)/i);
     const staffMatch = fullText.match(/Staf Penanggung Jawab:\s*(.+)/i);
@@ -370,56 +372,31 @@ ${hasilDraf}
 [AKSI BOS: APPROVE / REVISI]
 ---`;
 
-    return {
-      id: 'draft_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
-      division: matchedDivision,
-      divisionId,
-      assignedStaff: matchedStaff,
-      staffId,
-      taskPrompt,
-      hasilDraf,
-      formattedReport,
-      payloadPreview: { generatedVia: 'Gemini 3.8 Flash' },
-      status: 'PENDING_APPROVAL',
-      createdAt: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.warn('[Gemini Service] Fallback activated due to:', err);
-    return buildFallbackDraft(taskPrompt, staffHint);
-  }
+  return {
+    id: 'draft_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+    division: matchedDivision,
+    divisionId,
+    assignedStaff: matchedStaff,
+    staffId,
+    taskPrompt,
+    hasilDraf,
+    formattedReport,
+    payloadPreview: { generatedVia: response.model },
+    status: 'PENDING_APPROVAL',
+    createdAt: new Date().toISOString(),
+  };
 }
 
-export async function reviseDraftWithGemini(
+export async function reviseDraftWithOpenRouter(
   draftId: string,
   previousDraft: string,
   revisionNotes: string,
   staffName: string,
   divisionName: string
 ) {
-  if (!aiClient) {
-    const revisedText = `${previousDraft}\n\n[REVISI SESUAI ARAHAN BOS ISMANTO]:\nCatatan: "${revisionNotes}"\nPenyesuaian: Draf telah diperbaiki dan dipertajam sesuai instruksi terbaru pimpinan PT Rasyatech Digital Zenith.`;
-    return {
-      id: draftId,
-      hasilDraf: revisedText,
-      formattedReport: `---
-[LAPORAN DRAFT KANTOR AI]
-Divisi: ${divisionName}
-Staf Penanggung Jawab: ${staffName}
-Hasil Draf:
-${revisedText}
-[AKSI BOS: APPROVE / REVISI]
----`,
-      revisionNotes,
-      status: 'PENDING_APPROVAL',
-      revisedAt: new Date().toISOString(),
-    };
-  }
-
-  try {
-    const response = await Promise.race([
-      aiClient.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: `Kamu adalah staf virtual ${staffName} dari ${divisionName} di PT Rasyatech Digital Zenith.
+  const division = divisionForHint(undefined, divisionName);
+  const response = await generateOpenRouter(
+    `Kamu adalah staf virtual ${staffName} dari ${divisionName} di PT Rasyatech Digital Zenith.
 Bos Ismanto memberikan catatan revisi untuk draf sebelumnya:
 "${revisionNotes}"
 
@@ -436,18 +413,19 @@ Hasil Draf:
 [Hasil revisi draf matang]
 [AKSI BOS: APPROVE / REVISI]
 ---`,
-      }),
-      new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Revise timeout')), 6500)),
-    ]);
+    `Anda adalah staf virtual ${staffName}. Revisi hanya berdasarkan draf dan arahan pimpinan. Jangan mengarang fakta.`,
+    division,
+    AbortSignal.timeout(90_000),
+  );
 
-    const fullText = response.text || '';
-    const draftExtract = fullText.match(/Hasil Draf:\s*([\s\S]*?)\[AKSI BOS:/i);
-    const hasilDraf = draftExtract && draftExtract[1] ? draftExtract[1].trim() : fullText;
+  const fullText = response.content;
+  const draftExtract = fullText.match(/Hasil Draf:\s*([\s\S]*?)\[AKSI BOS:/i);
+  const hasilDraf = draftExtract && draftExtract[1] ? draftExtract[1].trim() : fullText;
 
-    const reportMatch = fullText.match(/---[\s\S]*?\[LAPORAN DRAFT KANTOR AI\][\s\S]*?\[AKSI BOS: APPROVE[\s\S]*?---/i);
-    const formattedReport = reportMatch
-      ? reportMatch[0]
-      : `---
+  const reportMatch = fullText.match(/---[\s\S]*?\[LAPORAN DRAFT KANTOR AI\][\s\S]*?\[AKSI BOS: APPROVE[\s\S]*?---/i);
+  const formattedReport = reportMatch
+    ? reportMatch[0]
+    : `---
 [LAPORAN DRAFT KANTOR AI]
 Divisi: ${divisionName}
 Staf Penanggung Jawab: ${staffName}
@@ -456,33 +434,14 @@ ${hasilDraf}
 [AKSI BOS: APPROVE / REVISI]
 ---`;
 
-    return {
-      id: draftId,
-      hasilDraf,
-      formattedReport,
-      revisionNotes,
-      status: 'PENDING_APPROVAL',
-      revisedAt: new Date().toISOString(),
-    };
-  } catch (err) {
-    console.warn('[Gemini Service] Revise fallback used due to:', err);
-    const fallbackText = `${previousDraft}\n\n[REVISI CEPAT]: ${revisionNotes}`;
-    return {
-      id: draftId,
-      hasilDraf: fallbackText,
-      formattedReport: `---
-[LAPORAN DRAFT KANTOR AI]
-Divisi: ${divisionName}
-Staf Penanggung Jawab: ${staffName}
-Hasil Draf:
-${fallbackText}
-[AKSI BOS: APPROVE / REVISI]
----`,
-      revisionNotes,
-      status: 'PENDING_APPROVAL',
-      revisedAt: new Date().toISOString(),
-    };
-  }
+  return {
+    id: draftId,
+    hasilDraf,
+    formattedReport,
+    revisionNotes,
+    status: 'PENDING_APPROVAL',
+    revisedAt: new Date().toISOString(),
+  };
 }
 
 /**
@@ -582,4 +541,3 @@ ${naskahLengkap}
     createdAt: new Date().toISOString(),
   };
 }
-

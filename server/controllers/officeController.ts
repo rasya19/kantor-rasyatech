@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { STAFF_REGISTRY, dispatchToGemini, reviseDraftWithGemini } from '../services/geminiService';
+import { STAFF_REGISTRY, dispatchToOpenRouter, reviseDraftWithOpenRouter } from '../services/officeDraftService';
 import { getProactiveDrafts, triggerManualProactiveBatch, runDailyCreatorRoutine } from '../services/scannerService';
 
 export const officeController = {
@@ -21,7 +21,7 @@ export const officeController = {
         return;
       }
 
-      const draft = await dispatchToGemini(taskPrompt, staffHint, divisionHint);
+      const draft = await dispatchToOpenRouter(taskPrompt, staffHint, divisionHint);
       res.json({
         success: true,
         draft,
@@ -42,7 +42,7 @@ export const officeController = {
         return;
       }
 
-      const revisedDraft = await reviseDraftWithGemini(
+      const revisedDraft = await reviseDraftWithOpenRouter(
         draftId,
         previousDraft,
         revisionNotes,

@@ -7,12 +7,13 @@ test('synthetic transaction and grounded draft persist and can be reviewed', { s
   const { prisma } = await import('../server/lib/prisma.ts');
   const { default: routes } = await import('../server/routes/businessRoutes.ts');
   const { default: workflowRoutes } = await import('../server/routes/workflowRoutes.ts');
+  const { jakartaDateKey } = await import('../server/services/executiveReport.ts');
   process.env.OPENROUTER_API_KEY = 'synthetic-key';
   const originalFetch = globalThis.fetch;
   context.mock.method(globalThis, 'fetch', async (url, options) => {
     if (!String(url).startsWith('https://openrouter.ai/api/v1/')) return originalFetch(url, options);
     if (String(url).endsWith('/key')) return Response.json({ data: { limit: 5, limit_reset: 'monthly', limit_remaining: 5 } });
-    return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'Contoh sintetis.', annotations: [
+    return Response.json({ usage: { prompt_tokens: 10, completion_tokens: 4, cost: 0.0007 }, choices: [{ finish_reason: 'stop', message: { content: 'Contoh sintetis.', annotations: [
       { type: 'url_citation', url_citation: { title: 'Sumber contoh', url: 'https://example.org/', start_index: 0, end_index: 16 } },
     ] } }] });
   });
@@ -26,6 +27,9 @@ test('synthetic transaction and grounded draft persist and can be reviewed', { s
   const note = `synthetic-${randomUUID()}`;
   let id;
   let draftId;
+  const reportTransactionIds = [];
+  let reportUsageId;
+  let leadId;
   try {
     const response = await fetch(`${base}/transactions`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -50,8 +54,52 @@ test('synthetic transaction and grounded draft persist and can be reviewed', { s
     const approve = await fetch(draftUrl, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'APPROVE' }) });
     assert.equal(approve.status, 200);
     assert.equal((await approve.json()).draft.status, 'APPROVED');
+
+    const reportDate = jakartaDateKey(new Date());
+    const baselineResponse = await fetch(`${base}/executive-report?date=${reportDate}`);
+    assert.equal(baselineResponse.status, 200);
+    const baseline = (await baselineResponse.json()).report;
+    for (const [kind, amount] of [['INCOME', 1_000_000], ['ESTIMATE', 3_000_000], ['EXPENSE', 250_000]]) {
+      const saved = await fetch(`${base}/transactions`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product: 'scanbite', kind, amount, date: reportDate, note }),
+      });
+      assert.equal(saved.status, 201);
+      reportTransactionIds.push((await saved.json()).transaction.id);
+    }
+    reportUsageId = (await prisma.openRouterUsage.create({
+      data: { division: 'creator', model: 'synthetic/model', promptTokens: 10, completionTokens: 5, costUsd: '0.125', usageAvailable: true, createdAt: new Date() },
+    })).id;
+    const newLead = await fetch(`${base}/leads`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ product: 'scanbite', valueIdr: 5_000_000, note }),
+    });
+    assert.equal(newLead.status, 201);
+    leadId = (await newLead.json()).lead.id;
+    for (const status of ['CONVERTED', 'SOLD']) {
+      const updatedLead = await fetch(`${base}/leads/${leadId}/status`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }),
+      });
+      assert.equal(updatedLead.status, 200);
+    }
+    const reportResponse = await fetch(`${base}/executive-report?date=${reportDate}`);
+    assert.equal(reportResponse.status, 200);
+    const report = (await reportResponse.json()).report;
+    assert.equal(report.actualRevenueIdr - baseline.actualRevenueIdr, 1_000_000);
+    assert.equal(report.estimatedIncomeIdr - baseline.estimatedIncomeIdr, 3_000_000);
+    assert.equal(report.expensesIdr - baseline.expensesIdr, 250_000);
+    const reportCreatorUsage = report.aiByDivision.find((division) => division.division === 'creator');
+    const baselineCreatorCost = baseline.aiByDivision.find((division) => division.division === 'creator')?.costUsdKnown ?? 0;
+    assert.ok(reportCreatorUsage, JSON.stringify(report.aiByDivision));
+    assert.ok(reportCreatorUsage.costUsdKnown >= baselineCreatorCost + 0.125);
+    assert.equal(report.leadPipeline.sold - baseline.leadPipeline.sold, 1);
+    assert.equal(report.leadPipeline.convertedOnDate - baseline.leadPipeline.convertedOnDate, 1);
+    assert.equal(report.leadPipeline.soldOnDate - baseline.leadPipeline.soldOnDate, 1);
   } finally {
     if (id) await prisma.financeTransaction.deleteMany({ where: { id, note } });
+    if (reportTransactionIds.length) await prisma.financeTransaction.deleteMany({ where: { id: { in: reportTransactionIds }, note } });
+    if (reportUsageId) await prisma.openRouterUsage.deleteMany({ where: { id: reportUsageId } });
+    if (leadId) await prisma.businessLead.deleteMany({ where: { id: leadId, note } });
     if (draftId) await prisma.officeDraft.deleteMany({ where: { id: draftId } });
     await new Promise((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     await prisma.$disconnect();

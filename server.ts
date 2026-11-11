@@ -1,14 +1,15 @@
+import 'dotenv/config';
 import express, { type Request, type Response } from 'express';
-import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { prisma } from './server/lib/prisma';
 import workflowRoutes from './server/routes/workflowRoutes';
 import jobRoutes from './server/routes/jobRoutes';
 import { startJobWorker } from './server/services/jobService';
 import businessRoutes from './server/routes/businessRoutes';
-import { startOpportunityScheduler } from './server/services/opportunityFlow';
-
-dotenv.config();
+import { pauseQueuedOpportunityTasks, startOpportunityScheduler } from './server/services/opportunityFlow';
+import { startVideoWorker } from './server/services/videoService';
+import { startDailyDigitalProductScheduler } from './server/services/businessResearch';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,16 +26,31 @@ app.use('/api/office-work', jobRoutes);
 app.use('/api/business', businessRoutes);
 
 // Health check endpoint
-app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ status: 'ok', service: 'Kantor AI PT Rasyatech Digital Zenith', time: new Date().toISOString() });
+app.get('/api/health', async (_req: Request, res: Response) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', database: 'connected', service: 'Kantor AI PT Rasyatech Digital Zenith', time: new Date().toISOString() });
+  } catch (error) {
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    console.error(`[Database] Pemeriksaan health gagal (${errorName}).`);
+    res.status(503).json({ status: 'unavailable', database: 'unavailable', service: 'Kantor AI PT Rasyatech Digital Zenith' });
+  }
 });
-
-// Start Autonomous Proactive Background Cron Scanner
-startOpportunityScheduler();
-startJobWorker();
 
 // Production / Dev Vite Server Mounting
 async function bootstrapServer() {
+  if (!process.env.DATABASE_URL?.trim()) {
+    throw new Error('DATABASE_URL belum diatur.');
+  }
+  try {
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
+  } catch (error) {
+    const errorName = error instanceof Error ? error.name : 'UnknownError';
+    console.error(`[Database] Pemeriksaan koneksi gagal (${errorName}). Periksa DATABASE_URL, jaringan, SSL, dan status migrasi.`);
+    throw new Error('Database readiness check gagal.');
+  }
+
   if (process.env.NODE_ENV === 'production') {
     app.use(express.static(path.join(__dirname, 'dist')));
     app.get('*', (_req: Request, res: Response) => {
@@ -50,6 +66,12 @@ async function bootstrapServer() {
     app.use(vite.middlewares);
   }
 
+  const pausedSprintTasks = await pauseQueuedOpportunityTasks();
+  if (pausedSprintTasks) console.log(`[Antrean kantor] ${pausedSprintTasks} tugas sprint ditahan; pilih tugas satu per satu dari Peluang & Keuangan.`);
+  startDailyDigitalProductScheduler();
+  startOpportunityScheduler();
+  startJobWorker();
+  startVideoWorker();
   app.listen(PORT, HOST, () => {
     console.log(`[Kantor AI Server] Berjalan pada http://${HOST}:${PORT}`);
     if (HOST !== '127.0.0.1' && HOST !== 'localhost') {
@@ -59,6 +81,6 @@ async function bootstrapServer() {
 }
 
 bootstrapServer().catch((err) => {
-  console.error('[Kantor AI Server] Fatal error booting server:', err);
+  console.error('[Kantor AI Server] Startup dibatalkan:', err instanceof Error ? err.message : 'Kesalahan tidak dikenal.');
   process.exit(1);
 });

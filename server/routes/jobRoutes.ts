@@ -69,7 +69,7 @@ router.post('/content-flow/from-draft/:id', route(async (req, res) => {
     if (locked.count !== 1) throw new WorkflowError('Laporan berubah. Muat ulang dan coba lagi.', 409);
     const flowId = randomUUID();
     await tx.contentFlow.create({ data: { id: flowId, sourceDraftId: id } });
-    await forwardContentStage(tx, flowId, 'trendy', record.data.content);
+    await forwardContentStage(tx, flowId, 'trendy', record.data.content, `${original.instruction}\n\nDraf Trendy yang disetujui:\n${record.data.content}`);
     return flowId;
   });
   } catch (error) {
@@ -118,8 +118,17 @@ router.post('/jobs/:id/retry', route(async (req, res) => {
     where: { id: req.params.id, status: 'FAILED' },
     data: { status: 'QUEUED', error: null, claimToken: null, leaseUntil: null },
   });
-  if (!result.count) throw new WorkflowError('Tugas tidak ditemukan atau tidak dalam keadaan gagal.', 409);
-  res.json({ success: true });
+  if (result.count) {
+    res.json({ success: true, alreadyActive: false });
+    return;
+  }
+  const current = await prisma.officeJob.findUnique({ where: { id: req.params.id }, select: { status: true } });
+  if (!current) throw new WorkflowError('Tugas tidak ditemukan.', 404);
+  if (current.status === 'QUEUED' || current.status === 'RUNNING') {
+    res.json({ success: true, alreadyActive: true });
+    return;
+  }
+  throw new WorkflowError('Tugas sudah berubah status dan tidak lagi gagal. Muat ulang antrean sebelum mencoba lagi.', 409);
 }));
 
 router.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { trackActivity } from './activityService';
-import { generateOpenRouter, openRouterModel, OpenRouterError } from './openrouter';
+import { generateOpenRouter, OpenRouterError } from './openrouter';
 import { createContentFlow } from './contentFlow';
 import { contentPackageInstruction, contentPackageProblems } from './contentPackage';
 import type { OfficeDivision, Ticket, WorkDraft } from '../../src/workflowTypes';
@@ -13,12 +13,18 @@ export class WorkflowError extends Error {
   }
 }
 
-const systemInstruction = 'Anda staf Kantor AI Rasyatech. Buat laporan profesional dalam bahasa Indonesia untuk ditinjau pimpinan sebelum tindakan apa pun. Bedakan fakta yang diberikan dari dugaan dan tulis informasi yang masih dibutuhkan. Jangan mengarang fitur produk, menampilkan kode mentah kecuali diminta secara eksplisit, atau mengklaim telah mengakses sistem, memperbaiki bug, mengirim pesan, meneliti tren langsung, atau mempublikasikan konten. Untuk laporan klien sertakan ringkasan, prioritas usulan, langkah investigasi aman, dan draf jawaban WhatsApp. Untuk konten sertakan ide video 9:16, hook 3 detik, naskah, caption, tagar, rencana monetisasi tanpa janji penghasilan, dan hal yang perlu diverifikasi. Pernyataan pemilik tentang fitur PAUD: 1-klik sinkronisasi Dapodik, rekap presensi otomatis, manajemen SPP, dan pendaftaran PSE Komdigi; informasi ini perlu diverifikasi sebelum dinyatakan sebagai fakta kepada klien.';
+export function currentWibDate(now = new Date()): string {
+  return new Date(now.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
 
-export async function generateReportWithDetails(instruction: string, division?: OfficeDivision, signal?: AbortSignal): Promise<{ content: string; ai: { provider: 'openrouter'; model: string } }> {
+export const companyMissionInstruction = 'Arah usaha pemilik adalah membangun beberapa sumber penghasilan digital yang realistis: konten yang dapat dimonetisasi, panduan/ebook/template yang dapat dijual melalui Lynk.id atau kanal lain, tutorial aplikasi untuk YouTube, serta produk aplikasi termasuk Siput PAUD dan Posyandu. Untuk sementara, riset produk non-aplikasi berada di Strategi Konten/Kreator; riset aplikasi tetap pada Riset Produk/Engineer untuk tahap jangka menengah. Selesaikan mandat sesuai peran divisi dan tunjukkan hubungan ke arah usaha ini bila relevan, tanpa memaksakan promosi ke tugas layanan, keamanan, atau administrasi. Prioritaskan langkah kecil yang murah dan cepat untuk menguji minat pembeli; jelaskan bukti yang dibutuhkan, asumsi/biaya yang belum diketahui, siapa yang bertindak berikutnya, dan jangan menjanjikan penghasilan. Kreator menyiapkan aset konten/panduan dan riset produk non-aplikasi sementara, Riset Produk/Engineer memvalidasi peluang aplikasi, Engineer memberi rencana teknis/kelayakan, Cyber menjaga keamanan dan privasi, serta staf PAUD/Posyandu mendukung produk dan operasional yang sudah diverifikasi. Semua komunikasi, penawaran, perubahan produk, dan publikasi tetap memerlukan tindakan dan persetujuan manusia.';
+
+const systemInstruction = `Anda staf Kantor AI Rasyatech. ${companyMissionInstruction} Buat laporan profesional dalam bahasa Indonesia untuk ditinjau pimpinan sebelum tindakan apa pun. Bedakan fakta yang diberikan dari dugaan dan tulis informasi yang masih dibutuhkan. Jangan mengarang fitur produk, menampilkan kode mentah kecuali diminta secara eksplisit, atau mengklaim telah mengakses sistem, memperbaiki bug, mengirim pesan, meneliti tren langsung, atau mempublikasikan konten. Jangan menyebut riset pasar atau sumber terbaru sudah dilakukan kecuali sumbernya disertakan dan mendukung klaim tersebut. Gunakan tanggal referensi WIB yang diberikan pemanggil; jangan mengarang tanggal/tahun atau menyajikan tanggal lama sebagai kondisi saat ini. Jika tidak ada sumber bertanggal yang cukup, nyatakan bahwa kebaruan informasi belum terverifikasi. Untuk laporan klien sertakan ringkasan, prioritas usulan, langkah investigasi aman, dan draf jawaban WhatsApp. Untuk konten sertakan ide video 9:16, hook 3 detik, naskah, caption, tagar, rencana monetisasi tanpa janji penghasilan, dan hal yang perlu diverifikasi. Pernyataan pemilik tentang fitur PAUD: 1-klik sinkronisasi Dapodik, rekap presensi otomatis, manajemen SPP, dan pendaftaran PSE Komdigi; informasi ini perlu diverifikasi sebelum dinyatakan sebagai fakta kepada klien.`;
+
+export async function generateReportWithDetails(instruction: string, division?: OfficeDivision, signal?: AbortSignal, product?: string): Promise<{ content: string; ai: { provider: 'openrouter'; model: string } }> {
   try {
-    const result = await generateOpenRouter(instruction, systemInstruction, division, signal);
-    return { content: result.content, ai: { provider: 'openrouter', model: openRouterModel(division) } };
+    const result = await generateOpenRouter(`${instruction}\n\nTanggal referensi saat ini (WIB): ${currentWibDate()}.`, systemInstruction, division, signal, false, product);
+    return { content: result.content, ai: { provider: 'openrouter', model: result.model } };
   } catch (error) {
     if (error instanceof OpenRouterError) throw new WorkflowError(error.message, error.status);
     throw error;

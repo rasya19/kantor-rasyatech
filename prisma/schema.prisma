@@ -105,15 +105,24 @@ model ContentFlow {
 }
 
 model VideoJob {
-  id         String   @id @default(uuid())
-  draftId    String   @unique
-  prompt     String   @db.Text
-  status     String   @default("QUEUED")
-  error      String?  @db.Text
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id            String   @id @default(uuid())
+  draftId       String
+  activeDraftId String?  @unique
+  prompt        String   @db.Text
+  status        String   @default("QUEUED")
+  error         String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
+  @@index([draftId, createdAt])
   @@index([status, createdAt])
+}
+
+model VideoRuntimeConfig {
+  id                 String   @id @default("global")
+  enabled            Boolean  @default(false)
+  approvedBudgetIdr  Int      @default(100000)
+  updatedAt          DateTime @updatedAt
 }
 
 model FinanceTransaction {
@@ -125,4 +134,39 @@ model FinanceTransaction {
   note      String   @default("")
   voidedAt  DateTime?
   createdAt DateTime @default(now())
+}
+
+model OpenRouterUsage {
+  id              String   @id @default(uuid())
+  division        String
+  product         String?
+  model           String
+  promptTokens    Int?
+  completionTokens Int?
+  costUsd         Decimal? @db.Decimal(20, 12)
+  usageAvailable  Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([division, createdAt])
+  @@index([product, createdAt])
+  @@map("openrouter_usage")
+}
+
+model BusinessLead {
+  id          String   @id @default(uuid())
+  product     String
+  status      String   @default("LEAD")
+  valueIdr    Int?
+  note        String   @default("") @db.Text
+  convertedAt DateTime?
+  soldAt      DateTime?
+  lostAt      DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status, createdAt])
+  @@index([convertedAt])
+  @@index([soldAt])
+  @@map("business_leads")
 }

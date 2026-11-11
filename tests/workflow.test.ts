@@ -32,6 +32,7 @@ test('workflow API rejects invalid requests without reporting success', async (c
     ['/tickets', { division: 'unknown', category: 'BUG', title: 'X', description: 'Y' }],
     ['/drafts/content', { topic: '   ' }],
     ['/drafts/mandate', { division: 'engineer', instruction: '' }],
+    ['/drafts/approved-draft/creator-followup', {}],
   ] as const) {
     const response = await fetch(`${base}${path}`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),

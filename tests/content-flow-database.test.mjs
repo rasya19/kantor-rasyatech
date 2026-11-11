@@ -83,7 +83,7 @@ test('content flows hand off atomically and old approved Trendy drafts continue 
     assert.equal(approved.status, 200);
     assert.equal((await approved.json()).draft.contentPackageVersion, 1);
     assert.equal((await prisma.officeDraft.findUnique({ where: { id: finalDraftId } })).data.status, 'APPROVED');
-    assert.equal(await prisma.videoJob.findUnique({ where: { draftId: finalDraftId } }), null);
+    assert.equal(await prisma.videoJob.findFirst({ where: { draftId: finalDraftId } }), null);
     process.env.VIDEO_ENABLED = 'false';
     const revised = await patch({ action: 'REVISE', notes: 'Perjelas narasi' });
     assert.equal(revised.status, 200);
