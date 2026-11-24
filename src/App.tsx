@@ -49,6 +49,7 @@ import { useVoiceDictation } from './hooks/useVoiceDictation';
 import { ACTIVE_STAFF, CORE_ROOMS, coreRoomForStaff, getRoomStaff, STAFF, type CoreRoomId } from './staff';
 import { marketingBriefInstruction, type MarketingBrief } from './lib/marketingBrief';
 import { digitalProductIdeaJobId, extractDigitalProductIdeas } from './lib/digitalProductIdeas';
+import { formatBuyerPreviewMarkdown, splitDigitalProductPackage } from './lib/digitalProductContent';
 import { extractVideoIdeas } from './lib/videoIdeas';
 import { OfficeAssistant } from './components/OfficeAssistant';
 import { LicenseGenerator } from './components/LicenseGenerator';
@@ -1558,10 +1559,21 @@ export default function App() {
                           {selectedDraft.grounding ? (
                             <GroundedReport draft={selectedDraft} />
                           ) : draftViewMode === 'read' ? (
-                            <DraftDocumentView text={content} />
+                            selectedDraft.productPackageVersion === 1 ? (
+                              <div className="space-y-2">
+                                <p className="text-xs font-extrabold uppercase tracking-wider text-teal-800">
+                                  Pratinjau Isi PDF Produk Pembeli (Tanpa Metadata Seller)
+                                </p>
+                                <DraftDocumentView
+                                  text={formatBuyerPreviewMarkdown(splitDigitalProductPackage(content, selectedDraft.title))}
+                                />
+                              </div>
+                            ) : (
+                              <DraftDocumentView text={content} />
+                            )
                           ) : (
                             <label className="block text-sm font-semibold text-slate-700">Edit isi laporan
-                              <textarea className={field} rows={16} maxLength={30000} value={content} onChange={(e) => setContent(e.target.value)} />
+                              <textarea className={field} rows={16} maxLength={120000} value={content} onChange={(e) => setContent(e.target.value)} />
                             </label>
                           )}
 

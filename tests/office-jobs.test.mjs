@@ -59,15 +59,20 @@ test('worker fences claims, persists one draft and reports generation failure', 
     const request = JSON.parse(String(options?.body));
     const instruction = request.messages[1].content;
     const productContent = [
+      '=== BAGIAN 1: ISI PRODUK PEMBELI (DICETAK KE PDF) ===',
       'Judul Produk: Kit Konten UMKM',
+      'Subjudul: Panduan praktis promosi harian untuk pemilik usaha kecil',
       'Jenis Produk: Template konten',
       'Target Pengguna: Pemilik usaha kecil',
-      'Ringkasan: Template konten praktis.',
+      'Ringkasan: Template konten praktis siap pakai.',
       'Cara Pakai: Pilih template dan isi detail produk.',
-      'Isi Produk: Sepuluh template yang dapat diedit.',
-      'Contoh Uji Sintetis: Demonstrasi rekaan, bukan testimoni.',
-      'Batasan dan Hal yang Perlu Diverifikasi: Tinjau klaim produk.',
-      'Deskripsi Listing Produk: Kit konten untuk ditinjau.',
+      'Isi Produk:',
+      '## Bab 1: Kumpulan Template Utama',
+      '1. Template caption pengenalan produk siap pakai.',
+      '=== METADATA & LISTING SELLER ===',
+      'Deskripsi Listing Lynk.id: Kit konten siap pakai untuk UMKM.',
+      'Saran Harga: Saran hipotesis Rp29.000 - Rp49.000.',
+      'Batasan dan Catatan Verifikasi: Tinjau kelengkapan isi sebelum diunggah ke Lynk.id.',
     ].join('\n');
     return Response.json({ choices: [{ finish_reason: 'stop', message: { content: instruction.includes('IDE YANG DIPILIH PIMPINAN') ? productContent : 'Laporan sintetis' } }] });
   });

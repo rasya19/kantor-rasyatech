@@ -6,7 +6,8 @@ import { isOfficeDivision } from '../../src/workflowTypes.js';
 import type { OfficeJob, WorkDraft } from '../../src/workflowTypes.js';
 import { generateReportWithDetails } from './workflowService.js';
 import { forwardContentStage } from './contentFlow.js';
-import { contentPackageInstruction, contentPackageProblems } from './contentPackage.js';
+import { contentPackageInstruction, contentPackageProblems, digitalProductSystemInstruction } from './contentPackage.js';
+import { defaultMaxTokens } from './openrouter.js';
 import { generateDigitalProductResearch, generateProductResearch, isDigitalProductResearchJob } from './businessResearch.js';
 import { forwardOpportunityResearch, isOpportunityResearchJob, sourceForOpportunityJob } from './opportunityFlow.js';
 import { digitalProductPackageProblems, sourceDraftForCreatorFollowup } from './creatorFollowup.js';
@@ -113,11 +114,16 @@ export async function processNextJob(): Promise<boolean> {
       const isDigitalProductMarketing = Boolean(sourceData && !Array.isArray(sourceData) &&
         typeof sourceData === 'object' && sourceData.productPackageVersion === 1);
       const mandateGuidance = 'mandateGuidance' in staff ? staff.mandateGuidance : undefined;
+      const prompt = isDigitalProductPackage
+        ? job.instruction
+        : `Anda ${staff.name}, staf ${staff.role}. Buat laporan untuk pimpinan.\n${mandateGuidance ? `${mandateGuidance}\n\n` : ''}${job.instruction}${isContentPackage ? `\n\n${contentPackageInstruction}` : ''}`;
       const generated = await generateReportWithDetails(
-        `Anda ${staff.name}, staf ${staff.role}. Buat laporan untuk pimpinan.\n${mandateGuidance ? `${mandateGuidance}\n\n` : ''}${job.instruction}${isContentPackage ? `\n\n${contentPackageInstruction}` : ''}`,
+        prompt,
         job.division,
-        AbortSignal.timeout(90000),
+        AbortSignal.timeout(isDigitalProductPackage ? 180_000 : 90_000),
         isDigitalProductPackage || isDigitalProductMarketing ? 'digital' : undefined,
+        isDigitalProductPackage ? Math.max(defaultMaxTokens(), 8192) : undefined,
+        isDigitalProductPackage ? digitalProductSystemInstruction : undefined,
       );
       let finalContent = generated.content;
       const ai = generated.ai;

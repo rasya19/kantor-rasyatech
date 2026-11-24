@@ -4,7 +4,12 @@ import { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { createContentDraft, createDraft, createTicketDraft, generateReportWithDetails, WorkflowError } from '../services/workflowService.js';
 import { getActivitySnapshot, trackActivity } from '../services/activityService.js';
-import { contentPackageInstruction, contentPackageProblems } from '../services/contentPackage.js';
+import {
+  contentPackageInstruction,
+  contentPackageProblems,
+  digitalProductPackageInstruction,
+  digitalProductSystemInstruction,
+} from '../services/contentPackage.js';
 import { extractVideoIdeas } from '../../src/lib/videoIdeas.js';
 import { generateOfficeAssistantReply, type AssistantMessage } from '../services/officeAssistant.js';
 import { creatorFollowupInstruction, digitalProductFollowupJob, creatorFollowupJobId, mandateRequestsContent } from '../services/creatorFollowup.js';
@@ -14,7 +19,7 @@ import { videoPath, wakeVideoWorker } from '../services/videoService.js';
 import { wakeJobWorker } from '../services/jobService.js';
 import { adminConfigured, adminCookie, adminSessionFromCookie, clearAdminCookie, createAdminSession, isValidAdminSession, verifyAdminPassword } from '../services/adminAuth.js';
 import { getVideoRuntimeConfig, setVideoEnabled, videoEnabled } from '../services/videoRuntimeConfig.js';
-import { getOpenRouterKeyBudget } from '../services/openrouter.js';
+import { defaultMaxTokens, getOpenRouterKeyBudget } from '../services/openrouter.js';
 import type { Ticket, TicketCategory, TicketDivision, TicketStatus, WorkDraft } from '../../src/workflowTypes.js';
 import { isDigitalProductResearchDraftId, isOfficeDivision } from '../../src/workflowTypes.js';
 
@@ -700,9 +705,20 @@ router.patch('/drafts/:id', asyncRoute(async (req, res) => {
   const update = async (notes: string) => {
     let content = previous.content;
     let ai = previous.ai;
-    if (action === 'EDIT') content = text(req.body?.content, 'Isi draf', 30000);
+    if (action === 'EDIT') content = text(req.body?.content, 'Isi draf', 120000);
     if (action === 'REVISE') {
-      const result = await generateReportWithDetails(`Revisi laporan berikut sesuai arahan pimpinan. Jangan mengarang fakta.\nArahan: ${notes}\nLaporan sebelumnya:\n${content}${previous.contentPackageVersion === 1 ? `\n\n${contentPackageInstruction}` : ''}`, previous.division, AbortSignal.timeout(90000));
+      const isDigitalProduct = previous.productPackageVersion === 1;
+      const revisePrompt = isDigitalProduct
+        ? `Revisi paket produk digital berikut sesuai arahan pemilik. Pertahankan isi produk yang utuh, lengkap, dan siap dijual untuk pembeli di Lynk.id tanpa catatan internal.\nArahan: ${notes}\nPaket produk sebelumnya:\n${content}\n\n${digitalProductPackageInstruction}`
+        : `Revisi laporan berikut sesuai arahan pimpinan. Jangan mengarang fakta.\nArahan: ${notes}\nLaporan sebelumnya:\n${content}${previous.contentPackageVersion === 1 ? `\n\n${contentPackageInstruction}` : ''}`;
+      const result = await generateReportWithDetails(
+        revisePrompt,
+        previous.division,
+        AbortSignal.timeout(isDigitalProduct ? 180_000 : 90_000),
+        isDigitalProduct ? 'digital' : undefined,
+        isDigitalProduct ? Math.max(defaultMaxTokens(), 8192) : undefined,
+        isDigitalProduct ? digitalProductSystemInstruction : undefined,
+      );
       content = result.content;
       ai = result.ai;
     }

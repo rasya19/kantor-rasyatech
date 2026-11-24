@@ -10,7 +10,7 @@ export const STAFF = [
   { id: 'sari', name: 'Sari', division: 'posyandu', role: 'Draf komunikasi Posyandu' },
   { id: 'sales_posyandu', name: 'Mitra Posyandu', division: 'posyandu', role: 'Strategi penjualan dan onboarding Posyandu' },
   { id: 'trendy', name: 'Trendy', division: 'creator', role: 'Ide konten' },
-  { id: 'script_ai', name: 'Script-AI', division: 'creator', role: 'Pembuatan MVP produk digital PDF & naskah inti' },
+  { id: 'script_ai', name: 'Script-AI', division: 'creator', role: 'Pembuatan paket produk digital PDF siap jual & naskah inti' },
   { id: 'clipper', name: 'Clipper', division: 'creator', role: 'Paket konten 1x AI (Ide, Hook, Naskah, Caption & CapCut)' },
   { id: 'strategist', name: 'Strategi Konten', division: 'creator', role: 'Riset peluang produk digital & validasi pasar' },
   { id: 'devops', name: 'Dev-Ops', division: 'engineer', role: 'Operasional teknis' },

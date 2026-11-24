@@ -37,15 +37,21 @@ test('Creator follow-up treats prior AI output as context and only uses owner-ve
 
 test('digital product package validation accepts different complete product formats', () => {
   const content = [
+    '=== BAGIAN 1: ISI PRODUK PEMBELI (DICETAK KE PDF) ===',
     'Judul Produk: Kit Konten UMKM',
+    'Subjudul: Koleksi aset konten siap pakai untuk bisnis rumahan',
     'Jenis Produk: Template konten',
     'Target Pengguna: Pemilik usaha kecil',
-    'Ringkasan: Template konten praktis.',
-    'Cara Pakai: Pilih template dan isi detail produk.',
-    'Isi Produk: Sepuluh template yang dapat diedit.',
-    'Contoh Uji Sintetis: Data rekaan.',
-    'Batasan dan Hal yang Perlu Diverifikasi: Tinjau klaim produk.',
-    'Deskripsi Listing Produk: Kit konten untuk ditinjau.',
+    'Ringkasan: Template konten praktis yang langsung dapat disalin.',
+    'Cara Pakai: Pilih template dan isi detail produk Anda.',
+    'Isi Produk:',
+    '## Bab 1: Template Utama',
+    '1. Template pengenalan produk lengkap siap unggah.',
+    '',
+    '=== METADATA & LISTING SELLER ===',
+    'Deskripsi Listing Lynk.id: Kit konten siap pakai untuk pemilik UMKM.',
+    'Saran Harga: Saran hipotesis Rp29.000 - Rp49.000.',
+    'Batasan dan Catatan Verifikasi: Periksa ulang sebelum diunggah ke Lynk.id.',
   ].join('\n');
   assert.deepEqual(digitalProductPackageProblems(content), []);
   assert.deepEqual(digitalProductPackageProblems('Judul Produk: Produk kecil'), [
@@ -54,18 +60,19 @@ test('digital product package validation accepts different complete product form
     'Ringkasan',
     'Cara Pakai',
     'Isi Produk',
-    'Contoh Uji Sintetis',
-    'Batasan dan Hal yang Perlu Diverifikasi',
-    'Deskripsi Listing Produk',
+    'Deskripsi Listing Lynk.id',
+    'Saran Harga',
+    'Batasan dan Catatan Verifikasi',
   ]);
 });
 
-test('digital product follow-up creates an MVP only from the explicitly selected idea', () => {
+test('digital product follow-up creates a complete buyer-ready product only from the explicitly selected idea', () => {
   const instruction = digitalProductFollowupInstruction('Riset tentang template konten untuk UMKM.', '## IDE PRODUK 2: Template konten UMKM\nFormat: template.');
   assert.match(instruction, /hanya dari ide yang dipilih langsung oleh pimpinan/i);
-  assert.match(instruction, /panduan\/workbook/);
+  assert.match(instruction, /panduan\/workbook/i);
   assert.match(instruction, /IDE YANG DIPILIH PIMPINAN:[\s\S]*IDE PRODUK 2/);
   assert.match(instruction, /link di bio kecuali tautan pemesanan resmi diberikan/i);
   assert.match(instruction, /Isi Produk:/);
+  assert.match(instruction, /=== METADATA & LISTING SELLER ===/);
   assert.doesNotMatch(instruction, /tepat 10 prompt/i);
 });
