@@ -83,8 +83,8 @@ export async function scheduleWeeklyResearch(now = new Date()): Promise<void> {
 }
 
 export function startOpportunityScheduler(): void {
-  if (process.env.OPPORTUNITY_SCHEDULE_ENABLED === 'false') {
-    console.log('[Riset mingguan] Jadwal dinonaktifkan.');
+  if (process.env.OPPORTUNITY_SCHEDULE_ENABLED !== 'true') {
+    console.log('[Riset mingguan] Jadwal dinonaktifkan (set OPPORTUNITY_SCHEDULE_ENABLED="true" untuk mengaktifkan).');
     return;
   }
   const run = () => { void scheduleWeeklyResearch().catch((error) => console.error('[Riset mingguan] Penjadwalan gagal:', error)); };
@@ -93,22 +93,14 @@ export function startOpportunityScheduler(): void {
 }
 
 export const opportunityTasks = [
-  { taskId: 'engineer_scanbite', staffId: 'code_ai', division: 'engineer', title: 'ScanBite: backlog penyelesaian dan QA', instruction: 'Fokus pada ScanBite, aplikasi order kafe lewat QR menurut pemilik. Susun backlog penyelesaian yang diprioritaskan, skenario QA untuk alur QR/pemesanan yang perlu diperiksa, kriteria penerimaan, dependensi, dan rencana 7 hari. Repository dan kode tidak tersedia untukmu: jangan mengklaim sudah membaca, mengubah, menjalankan, atau menguji kode; tandai hal yang perlu diverifikasi setelah pemilik memberikan bahan non-rahasia.' },
-  { taskId: 'engineer_konter', staffId: 'devops', division: 'engineer', title: 'Konter +62: backlog penyelesaian dan QA', instruction: 'Fokus pada Konter +62, aplikasi POS menurut pemilik. Susun backlog penyelesaian yang diprioritaskan, skenario QA transaksi yang perlu diperiksa, kriteria penerimaan, dependensi, dan rencana 7 hari. Repository dan kode tidak tersedia untukmu: jangan mengklaim sudah membaca, mengubah, menjalankan, atau menguji kode; tandai hal yang perlu diverifikasi setelah pemilik memberikan bahan non-rahasia.' },
-  { taskId: 'engineer_lorisan', staffId: 'architect', division: 'engineer', title: 'Lorisan Warung: backlog penyelesaian dan QA', instruction: 'Fokus pada Manajemen Lorisan Warung, aplikasi manajemen warung menurut pemilik. Susun backlog penyelesaian yang diprioritaskan, skenario QA operasional yang perlu diperiksa, kriteria penerimaan, dependensi, dan rencana 7 hari. Repository dan kode tidak tersedia untukmu: jangan mengklaim sudah membaca, mengubah, menjalankan, atau menguji kode; tandai hal yang perlu diverifikasi setelah pemilik memberikan bahan non-rahasia.' },
-  { taskId: 'cyber_scanbite', staffId: 'sentinel', division: 'cyber', title: 'ScanBite: checklist keamanan defensif', instruction: 'Fokus pada tinjauan keamanan defensif ScanBite (order kafe lewat QR menurut pemilik) untuk sprint 7 hari. Buat checklist review kode dan konfigurasi yang perlu dilakukan pemilik, mencakup validasi input, sesi/otorisasi, privasi, dan risiko penyalahgunaan QR. Repository tidak tersedia; jangan mengklaim audit atau mitigasi telah dilakukan, meminta rahasia/data pribadi, atau memberi langkah eksploitasi terhadap sistem nyata.' },
-  { taskId: 'cyber_konter', staffId: 'guard_ai', division: 'cyber', title: 'Konter +62: checklist keamanan defensif', instruction: 'Fokus pada tinjauan keamanan defensif Konter +62 (aplikasi POS menurut pemilik) untuk sprint 7 hari. Buat checklist review yang perlu dilakukan pemilik untuk kontrol akses, perlindungan data transaksi, validasi input, pencatatan, dan dependensi. Repository tidak tersedia; jangan mengklaim audit atau mitigasi telah dilakukan, meminta rahasia/data pribadi, atau memberi langkah eksploitasi terhadap sistem nyata.' },
-  { taskId: 'cyber_lorisan', staffId: 'audit', division: 'cyber', title: 'Lorisan Warung: checklist keamanan defensif', instruction: 'Fokus pada tinjauan keamanan defensif Manajemen Lorisan Warung (aplikasi manajemen warung menurut pemilik) untuk sprint 7 hari. Buat checklist review yang perlu dilakukan pemilik untuk autentikasi/otorisasi, privasi data, validasi input, cadangan, dan dependensi. Repository tidak tersedia; jangan mengklaim audit atau mitigasi telah dilakukan, meminta rahasia/data pribadi, atau memberi langkah eksploitasi terhadap sistem nyata.' },
-  { taskId: 'creator_scanbite', staffId: 'strategist', division: 'creator', title: 'ScanBite: validasi pasar dan konten lokal', instruction: 'Rancang materi validasi pasar dan copywriting lokal untuk ScanBite (order kafe lewat QR menurut pemilik): hipotesis calon pengguna berdasarkan peran, pertanyaan wawancara, tiga konsep promosi dan ajakan minta demo, kanal distribusi manual, serta metrik respons untuk 7 hari. Jangan menganggap fitur atau produk siap, mengarang testimoni/harga/pelanggan, atau memublikasikan tanpa persetujuan.' },
-  { taskId: 'creator_konter', staffId: 'strategist', division: 'creator', title: 'Konter +62: validasi pasar dan konten lokal', instruction: 'Rancang materi validasi pasar dan copywriting lokal untuk Konter +62 (aplikasi POS menurut pemilik): hipotesis calon pengguna berdasarkan peran, pertanyaan wawancara, tiga konsep promosi dan ajakan minta demo, kanal distribusi manual, serta metrik respons untuk 7 hari. Jangan menganggap fitur atau produk siap, mengarang testimoni/harga/pelanggan, atau memublikasikan tanpa persetujuan.' },
-  { taskId: 'creator_lorisan', staffId: 'strategist', division: 'creator', title: 'Lorisan Warung: validasi pasar dan konten lokal', instruction: 'Rancang materi validasi pasar dan copywriting lokal untuk Manajemen Lorisan Warung (aplikasi manajemen warung menurut pemilik): hipotesis calon pengguna berdasarkan peran, pertanyaan wawancara, tiga konsep promosi dan ajakan minta demo, kanal distribusi manual, serta metrik respons untuk 7 hari. Jangan menganggap fitur atau produk siap, mengarang testimoni/harga/pelanggan, atau memublikasikan tanpa persetujuan.' },
-  { taskId: 'paud_siput', staffId: 'sales_paud', division: 'paud', title: 'siput.id: checklist operasional PAUD', instruction: 'Fokus pada operasional administratif siput.id/PAUD, bukan penawaran penjualan. Buat checklist 7 hari untuk memeriksa alur administrasi, kebutuhan onboarding/bantuan, konsistensi data, dan laporan yang perlu ditinjau operator; bedakan hal yang perlu dikonfirmasi pemilik. Jangan mengarang fitur/integrasi, memproses atau meminta data anak, kredensial, maupun data pribadi.' },
-  { taskId: 'posyandu_sip', staffId: 'sales_posyandu', division: 'posyandu', title: 'SIP Posyandu: checklist operasional administrasi', instruction: 'Fokus pada operasional administratif SIP Posyandu, bukan penawaran penjualan. Buat checklist 7 hari untuk memeriksa alur administrasi, kebutuhan onboarding/bantuan, konsistensi data, dan laporan yang perlu ditinjau operator; bedakan hal yang perlu dikonfirmasi pemilik. Jangan mengarang fitur, memberi saran medis, atau memproses/meminta data kesehatan, identitas, kredensial, maupun data pribadi.' },
+  { taskId: 'creator_validate_apps', staffId: 'strategist', division: 'creator', title: 'ScanBite, Konter +62 & Lorisan Warung: prioritas validasi 7 hari', instruction: 'Berdasarkan riset rujukan, susun 1 eksperimen validasi pasar manual paling murah selama 7 hari untuk masing-masing proyek pemilik (ScanBite, Konter +62, dan Manajemen Lorisan Warung). Pisahkan fakta sumber, asumsi, target responden, dan kriteria lanjut/berhenti. Jangan mengarang pelanggan, testimoni, fitur tersedia, kode, atau pendapatan.' },
+  { taskId: 'creator_promo_apps', staffId: 'clipper', division: 'creator', title: 'ScanBite, Konter +62 & Lorisan Warung: paket konten demo & validasi', instruction: 'Siapkan masing-masing 1 paket draf konten video pendek 9:16 untuk menguji minat pasar pada ScanBite, Konter +62, dan Manajemen Lorisan Warung. Gunakan hanya deskripsi dasar pemilik dan sumber terlampir; tandai harga/tautan sebagai [PERLU KONFIRMASI]. Jangan mengarang testimoni/hasil atau memublikasikan otomatis.' },
+  { taskId: 'paud_siput', staffId: 'arka', division: 'paud', title: 'siput.id: checklist operasional PAUD', instruction: 'Fokus pada operasional administratif siput.id/PAUD, bukan penawaran penjualan. Buat checklist 7 hari untuk memeriksa alur administrasi, kebutuhan onboarding/bantuan, konsistensi data, dan laporan yang perlu ditinjau operator; bedakan hal yang perlu dikonfirmasi pemilik. Jangan mengarang fitur/integrasi, memproses atau meminta data anak, kredensial, maupun data pribadi.' },
+  { taskId: 'posyandu_sip', staffId: 'dr_ai', division: 'posyandu', title: 'SIP Posyandu: checklist operasional administrasi', instruction: 'Fokus pada operasional administratif SIP Posyandu, bukan penawaran penjualan. Buat checklist 7 hari untuk memeriksa alur administrasi, kebutuhan onboarding/bantuan, konsistensi data, dan laporan yang perlu ditinjau operator; bedakan hal yang perlu dikonfirmasi pemilik. Jangan mengarang fitur, memberi saran medis, atau memproses/meminta data kesehatan, identitas, kredensial, maupun data pribadi.' },
 ] as const;
 
 const reportHandoffInstruction: Partial<Record<string, string>> = {
-  engineer: 'Untuk Ruang Pimpinan, akhiri dengan ringkasan hasil, prioritas, risiko, bukti yang belum ada, dan langkah pemilik berikutnya. Jangan mengklaim kode telah diubah/diuji atau menyebut estimasi sebagai revenue aktual.',
-  creator: 'Untuk Ruang Pimpinan, sertakan draf penawaran B2B/pilot dan ringkasan validasi. Tandai harga dan hasil sebagai hipotesis; jangan mengarang lead, konversi, proyek terjual, testimoni, atau pendapatan.',
+  creator: 'Untuk Ruang Pimpinan, sertakan draf penawaran pilot dan ringkasan validasi. Tandai harga dan hasil sebagai hipotesis; jangan mengarang lead, konversi, proyek terjual, testimoni, atau pendapatan.',
 };
 
 export async function forwardOpportunityResearch(tx: Prisma.TransactionClient, jobId: string, draft: WorkDraft): Promise<void> {
@@ -119,14 +111,29 @@ export async function forwardOpportunityResearch(tx: Prisma.TransactionClient, j
     const handoff = reportHandoffInstruction[task.division] ?? '';
     await tx.officeJob.create({ data: {
       id: `${jobId}:${task.taskId}`, division: task.division, staffId: task.staffId, title: task.title, status: 'PAUSED',
-      instruction: `${task.instruction}${handoff ? `\n\n${handoff}` : ''}\n\nGunakan hanya sumber yang dicantumkan di bawah. Jangan mengklaim riset web terbaru atau fakta pasar yang tidak didukung sumber. Jika tanggal atau kebaruan sumber tidak jelas, tandai belum terverifikasi.\n\nSumber riset rujukan ${draft.id}:\n${sourceReferences}\n\nIsi riset rujukan:\n${draft.content.slice(0, 16000)}`,
+      instruction: `${task.instruction}${handoff ? `\n\n${handoff}` : ''}\n\nGunakan hanya sumber yang dicantumkan di bawah. Jangan mengklaim riset web terbaru atau fakta pasar yang tidak didukung sumber. Jika tanggal atau kebaruan sumber tidak jelas, tandai belum terverifikasi.\n\nSumber riset rujukan ${draft.id}:\n${sourceReferences}\n\nIsi riset rujukan:\n${draft.content.slice(0, 3500)}`,
     } });
   }
 }
 
 export function sourceForOpportunityJob(id: string): string | undefined {
   const [researchId, taskId, extra] = id.split(':');
-  const legacyTaskIds = ['sales_paud', 'sales_posyandu', 'qa', 'strategist', 'guard_ai'];
+  const legacyTaskIds = [
+    'sales_paud',
+    'sales_posyandu',
+    'qa',
+    'strategist',
+    'guard_ai',
+    'engineer_scanbite',
+    'engineer_konter',
+    'engineer_lorisan',
+    'cyber_scanbite',
+    'cyber_konter',
+    'cyber_lorisan',
+    'creator_scanbite',
+    'creator_konter',
+    'creator_lorisan',
+  ];
   if (extra !== undefined || !researchId || !taskId || !isOpportunityResearchJob(researchId) ||
       (!opportunityTasks.some((task) => task.taskId === taskId) && !legacyTaskIds.includes(taskId))) return undefined;
   return `job-${researchId}`;

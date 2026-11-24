@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { buildExecutiveReport, jakartaDateKey, jakartaPeriodBounds, type ReportPeriod } from './executiveReport';
+import { getUsdIdrRate } from './exchangeRate';
 
 const periods: { key: ReportPeriod; label: string }[] = [
   { key: 'day', label: 'HARIAN' },
@@ -35,7 +36,7 @@ export async function generateFinancialManagerReport(now = new Date()): Promise<
   const latest = validBounds.reduce((end, period) => period.end > end ? period.end : end, validBounds[0].end);
   const startDate = validBounds.reduce((start, period) => period.startDate < start ? period.startDate : start, validBounds[0].startDate);
   const endDate = validBounds.reduce((end, period) => period.endDate > end ? period.endDate : end, validBounds[0].endDate);
-  const [transactions, usage] = await Promise.all([
+  const [transactions, usage, rateInfo] = await Promise.all([
     prisma.financeTransaction.findMany({
       where: { date: { gte: startDate, lte: endDate }, voidedAt: null },
       select: { product: true, kind: true, amount: true, date: true },
@@ -44,10 +45,12 @@ export async function generateFinancialManagerReport(now = new Date()): Promise<
       where: { createdAt: { gte: earliest, lt: latest } },
       select: { division: true, product: true, model: true, promptTokens: true, completionTokens: true, costUsd: true, usageAvailable: true, createdAt: true },
     }),
+    getUsdIdrRate(),
   ]);
-  const configuredRate = process.env.OPENROUTER_USD_IDR?.trim();
-  const parsedRate = configuredRate ? Number(configuredRate) : null;
-  const usdIdr = parsedRate !== null && Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : null;
+  const usdIdr = rateInfo.rate;
+  const rateNote = usdIdr === null
+    ? '- Kurs USD/IDR belum tersedia (API kurs tidak terjangkau dan OPENROUTER_USD_IDR belum disetel).'
+    : `- Kurs USD/IDR yang digunakan: ${formatIdr(usdIdr)} (${rateInfo.source === 'live' ? `otomatis via ${rateInfo.provider}` : 'manual .env'}).`;
   const summaries = periods.map(({ key, label }) => {
     const period = jakartaPeriodBounds(date, key);
     if (!period) throw new Error('Periode laporan keuangan tidak valid.');
@@ -68,7 +71,8 @@ export async function generateFinancialManagerReport(now = new Date()): Promise<
     'BATAS DATA',
     '- Sumber pemasukan dan pengeluaran adalah transaksi yang dicatat manual di aplikasi; Lynk.id, QRIS, rekening, dan e-wallet belum terhubung.',
     '- Saldo kas/rekening/e-wallet tidak tersedia. Biaya layanan luar dan top-up yang belum dicatat tidak otomatis terhitung.',
-    '- Biaya AI disajikan terpisah dari pengeluaran operasional tercatat. Estimasi setelah AI hanya tersedia jika kurs USD/IDR dikonfigurasi dan semua pemakaian memiliki biaya.',
+    '- Biaya AI disajikan terpisah dari pengeluaran operasional tercatat. Estimasi setelah AI hanya tersedia jika kurs USD/IDR tersedia dan semua pemakaian memiliki biaya.',
+    rateNote,
     '- Angka laporan ini dihitung langsung dari database kantor dan tidak dikirim ke provider AI.',
   ].join('\n\n');
 }

@@ -6,7 +6,7 @@ interface InstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>;
 }
 
-export function InstallApp() {
+export function InstallApp({ theme = 'light' }: { theme?: 'light' | 'dark' }) {
   const [prompt, setPrompt] = useState<InstallPromptEvent | null>(null);
   const [showIosHint, setShowIosHint] = useState(false);
   const [installed, setInstalled] = useState(
@@ -47,17 +47,42 @@ export function InstallApp() {
     }
   };
 
+  const isDark = theme === 'dark';
+
   return (
     <div className="space-y-2">
-      <button type="button" onClick={() => void install()} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-teal-700/70 bg-teal-500/10 px-3 py-2 text-sm font-semibold text-teal-200 hover:bg-teal-500/20">
-        {prompt ? <Download size={17} /> : <Smartphone size={17} />}
+      <button
+        type="button"
+        onClick={() => void install()}
+        className={`flex min-h-10 w-full items-center justify-center gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition ${
+          isDark
+            ? 'border-white/15 bg-white/8 text-emerald-200 hover:bg-white/14'
+            : 'border-teal-200 bg-teal-50/70 text-teal-800 hover:bg-teal-100/70'
+        }`}
+      >
+        {prompt ? <Download size={15} /> : <Smartphone size={15} />}
         {prompt ? 'Pasang aplikasi' : 'Cara pasang di HP'}
       </button>
-      {showIosHint && <div className="relative rounded-lg bg-slate-950 p-3 pr-9 text-xs leading-relaxed text-slate-300">
-        <button type="button" onClick={() => setShowIosHint(false)} className="absolute right-2 top-2 p-1" aria-label="Tutup petunjuk"><X size={15} /></button>
-        iPhone: buka di Safari, pilih Bagikan, lalu Tambah ke Layar Utama. Android: buka menu browser dan pilih Instal aplikasi atau Tambahkan ke layar utama.
-      </div>}
-      {error && <p role="alert" className="text-xs text-rose-300">{error}</p>}
+      {showIosHint && (
+        <div
+          className={`relative rounded-xl border p-3 pr-9 text-xs leading-relaxed ${
+            isDark
+              ? 'border-white/15 bg-white/10 text-slate-200'
+              : 'border-slate-200 bg-slate-50 text-slate-600'
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => setShowIosHint(false)}
+            className={`absolute right-2 top-2 rounded-md p-1 ${isDark ? 'text-slate-300 hover:bg-white/15' : 'text-slate-500 hover:bg-slate-200'}`}
+            aria-label="Tutup petunjuk"
+          >
+            <X size={15} />
+          </button>
+          iPhone: buka di Safari, pilih Bagikan, lalu Tambah ke Layar Utama. Android: buka menu browser dan pilih Instal aplikasi atau Tambahkan ke layar utama.
+        </div>
+      )}
+      {error && <p role="alert" className={`text-xs font-medium ${isDark ? 'text-rose-300' : 'text-rose-700'}`}>{error}</p>}
     </div>
   );
 }

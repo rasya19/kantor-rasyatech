@@ -42,6 +42,7 @@ test('requires a monthly key budget at or below the configured maximum', async (
     if (url.endsWith('/key')) return Response.json({ data: { limit: 5, limit_reset: 'monthly', limit_remaining: 3 } });
     const body = JSON.parse(options.body);
     assert.deepEqual(body.models, ['example/primary', 'example/fallback']);
+    assert.equal(body.max_tokens, 2400);
     assert.equal(body.plugins[0].engine, 'exa');
     return Response.json({ model: 'example/fallback', usage: { prompt_tokens: 2, completion_tokens: 1, cost: 0.00001 }, choices: [{ finish_reason: 'stop', message: { content: 'Hasil uji', annotations: [] } }] });
   });
@@ -60,26 +61,22 @@ test('requires a monthly key budget at or below the configured maximum', async (
 });
 
 test('division models have specialized defaults, support overrides, and reject unsafe gateway URLs', async (t) => {
-  const original = {
-    key: process.env.OPENROUTER_API_KEY,
-    base: process.env.OPENROUTER_BASE_URL,
-    engineer: process.env.OPENROUTER_MODEL_ENGINEER,
-    fallbackEngineer: process.env.OPENROUTER_FALLBACK_MODELS_ENGINEER,
-    defaultModel: process.env.OPENROUTER_MODEL,
-  };
+  const envKeys = [
+    'OPENROUTER_API_KEY', 'OPENROUTER_BASE_URL', 'OPENROUTER_MODEL',
+    'OPENROUTER_MODEL_ENGINEER', 'OPENROUTER_FALLBACK_MODELS_ENGINEER',
+    'OPENROUTER_MODEL_CYBER', 'OPENROUTER_FALLBACK_MODELS_CYBER',
+    'OPENROUTER_MODEL_PAUD', 'OPENROUTER_FALLBACK_MODELS_PAUD',
+    'OPENROUTER_MODEL_POSYANDU', 'OPENROUTER_FALLBACK_MODELS_POSYANDU',
+    'OPENROUTER_MODEL_CREATOR', 'OPENROUTER_FALLBACK_MODELS_CREATOR',
+  ];
+  const original = Object.fromEntries(envKeys.map((name) => [name, process.env[name]]));
   t.after(() => {
-    for (const [name, value] of Object.entries({
-      OPENROUTER_API_KEY: original.key,
-      OPENROUTER_BASE_URL: original.base,
-      OPENROUTER_MODEL_ENGINEER: original.engineer,
-      OPENROUTER_FALLBACK_MODELS_ENGINEER: original.fallbackEngineer,
-      OPENROUTER_MODEL: original.defaultModel,
-    })) {
+    for (const [name, value] of Object.entries(original)) {
       if (value === undefined) delete process.env[name]; else process.env[name] = value;
     }
   });
 
-  test('reports status and content type when OpenRouter returns a non-JSON success response', async (t) => {
+  await t.test('reports status and content type when OpenRouter returns a non-JSON success response', async (t) => {
     const previousKey = process.env.OPENROUTER_API_KEY;
     process.env.OPENROUTER_API_KEY = 'synthetic-key';
     t.after(() => {
@@ -96,15 +93,15 @@ test('division models have specialized defaults, support overrides, and reject u
     );
   });
   process.env.OPENROUTER_API_KEY = 'synthetic-key';
-  delete process.env.OPENROUTER_MODEL;
-  delete process.env.OPENROUTER_MODEL_ENGINEER;
-  delete process.env.OPENROUTER_FALLBACK_MODELS_ENGINEER;
+  for (const name of envKeys) {
+    if (name !== 'OPENROUTER_API_KEY' && name !== 'OPENROUTER_BASE_URL') delete process.env[name];
+  }
   assert.equal(openRouterModel(), 'google/gemini-2.5-flash');
-  assert.deepEqual(openRouterModels('engineer'), ['qwen/qwen-2.5-coder-32b-instruct', 'anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro']);
-  assert.deepEqual(openRouterModels('cyber'), ['anthropic/claude-3.5-sonnet', 'anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro']);
-  assert.deepEqual(openRouterModels('paud'), ['google/gemini-2.5-flash', 'anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro']);
+  assert.deepEqual(openRouterModels('engineer'), ['qwen/qwen-2.5-coder-32b-instruct', 'deepseek/deepseek-chat', 'google/gemini-2.5-flash']);
+  assert.deepEqual(openRouterModels('cyber'), ['google/gemini-2.5-flash', 'deepseek/deepseek-chat', 'qwen/qwen-2.5-72b-instruct']);
+  assert.deepEqual(openRouterModels('paud'), ['google/gemini-2.5-flash', 'deepseek/deepseek-chat', 'qwen/qwen-2.5-72b-instruct']);
   assert.deepEqual(openRouterModels('posyandu'), openRouterModels('paud'));
-  assert.deepEqual(openRouterModels('creator'), ['deepseek/deepseek-chat', 'anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro']);
+  assert.deepEqual(openRouterModels('creator'), ['deepseek/deepseek-chat', 'google/gemini-2.5-flash', 'qwen/qwen-2.5-72b-instruct']);
   process.env.OPENROUTER_MODEL_ENGINEER = 'example/model';
   process.env.OPENROUTER_FALLBACK_MODELS_ENGINEER = 'example/backup, example/backup, ';
   process.env.OPENROUTER_BASE_URL = 'https://example.org/api/v1';

@@ -18,8 +18,8 @@ function replace(context, object, name, implementation) {
 
 test('ticket assignment and queue creation are transactional', async (context) => {
   const assignments = [
-    ['paud', 'BUG', 'arka'], ['paud', 'QUESTION', 'lisa'], ['paud', 'COMPLAINT', 'dewi'],
-    ['posyandu', 'BUG', 'dr_ai'], ['posyandu', 'QUESTION', 'budi'], ['posyandu', 'COMPLAINT', 'sari'],
+    ['paud', 'BUG', 'arka'], ['paud', 'QUESTION', 'arka'], ['paud', 'COMPLAINT', 'arka'],
+    ['posyandu', 'BUG', 'dr_ai'], ['posyandu', 'QUESTION', 'dr_ai'], ['posyandu', 'COMPLAINT', 'dr_ai'],
   ];
   for (const [division, category, staff] of assignments) assert.equal(ticketStaff(division, category), staff);
   let queued;

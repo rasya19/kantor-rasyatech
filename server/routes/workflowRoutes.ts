@@ -10,7 +10,8 @@ import { generateOfficeAssistantReply, type AssistantMessage } from '../services
 import { creatorFollowupInstruction, digitalProductFollowupJob, creatorFollowupJobId, mandateRequestsContent } from '../services/creatorFollowup';
 import { digitalProductIdeaKey } from '../../src/lib/digitalProductIdeas';
 import { createContentFlow } from '../services/contentFlow';
-import { videoPath } from '../services/videoService';
+import { videoPath, wakeVideoWorker } from '../services/videoService';
+import { wakeJobWorker } from '../services/jobService';
 import { adminConfigured, adminCookie, adminSessionFromCookie, clearAdminCookie, createAdminSession, isValidAdminSession, verifyAdminPassword } from '../services/adminAuth';
 import { getVideoRuntimeConfig, setVideoEnabled, videoEnabled } from '../services/videoRuntimeConfig';
 import { getOpenRouterKeyBudget } from '../services/openrouter';
@@ -155,7 +156,7 @@ async function engineerMandateContentFlow(
   await createContentFlow(
     tx,
     `Strategi konten · ${draft.title}`,
-    `Tugas Trendy: susun ide konten yang relevan berdasarkan mandat dan laporan yang disetujui. Jangan mengklaim telah melakukan riset tren atau memeriksa algoritma platform secara langsung. Tandai hal yang perlu diverifikasi. Hasil akan diteruskan ke Script-AI dan Clipper sebagai draf untuk ditinjau; jangan membuat atau memublikasikan video.\n\nMandat sumber:\n${sourceJob.instruction}\n\nLaporan yang disetujui:\n${draft.content}`,
+    `Tugas Clipper (paket langsung): susun satu paket konten lengkap yang relevan berdasarkan mandat dan laporan yang disetujui. Jangan mengklaim telah melakukan riset tren atau memeriksa algoritma platform secara langsung. Tandai hal yang perlu diverifikasi. Hasil akan menjadi draf untuk ditinjau; jangan membuat atau memublikasikan video.\n\nMandat sumber:\n${sourceJob.instruction.slice(0, 1500)}\n\nLaporan yang disetujui:\n${draft.content.slice(0, 4000)}`,
     id,
     draft.id,
   );
@@ -183,7 +184,7 @@ async function marketingManagerContentFlow(
   await createContentFlow(
     tx,
     `Konten marketing · ${draft.title}`,
-    `Tugas Trendy: ubah laporan Manajer Pemasaran yang sudah disetujui menjadi satu konsep konten yang siap diteruskan ke Script-AI dan Clipper. Gunakan hanya fitur, harga, tautan, target pengguna, kanal, dan klaim yang dinyatakan terverifikasi dalam brief sumber. Jangan mengarang testimoni, hasil, atau ketersediaan. Jangan menyuruh audiens membeli atau membuka link di bio kecuali tautan/cara pemesanan resmi ada di brief. Jika belum ada, gunakan ajakan non-transaksional dan tandai [PERLU KONFIRMASI]. Hasil adalah draf untuk ditinjau; jangan membuat video, menghubungi pelanggan, atau memublikasikan.\n\nMandat dan brief sumber Manajer Pemasaran:\n${sourceInstruction}\n\nLaporan Manajer Pemasaran yang disetujui:\n${draft.content}`,
+    `Tugas Clipper: ubah laporan Manajer Pemasaran yang sudah disetujui menjadi satu paket konten lengkap siap tinjau. Gunakan hanya fitur, harga, tautan, target pengguna, kanal, dan klaim yang dinyatakan terverifikasi dalam brief sumber. Jangan mengarang testimoni, hasil, atau ketersediaan. Jangan menyuruh audiens membeli atau membuka link di bio kecuali tautan/cara pemesanan resmi ada di brief. Jika belum ada, gunakan ajakan non-transaksional dan tandai [PERLU KONFIRMASI]. Hasil adalah draf untuk ditinjau; jangan membuat video, menghubungi pelanggan, atau memublikasikan.\n\nMandat dan brief sumber Manajer Pemasaran:\n${sourceInstruction.slice(0, 1500)}\n\nLaporan Manajer Pemasaran yang disetujui:\n${draft.content.slice(0, 4000)}`,
     id,
     draft.id,
   );
@@ -344,6 +345,7 @@ router.post('/drafts/:id/marketing-content-followup', asyncRoute(async (req, res
     if (!followup.id) throw new WorkflowError('Tahap lanjutan gagal dibuat. Muat ulang dan coba lagi.', 500);
     return { id: followup.id, created: followup.created };
   });
+  if (result.created) wakeJobWorker();
   res.status(202).json(result);
 }));
 
@@ -361,6 +363,7 @@ router.post('/drafts/:id/mandate-content-followup', asyncRoute(async (req, res) 
     if (!followup.id) throw new WorkflowError('Tahap lanjutan gagal dibuat. Muat ulang dan coba lagi.', 500);
     return { id: followup.id, created: followup.created };
   });
+  if (result.created) wakeJobWorker();
   res.status(202).json(result);
 }));
 
@@ -392,6 +395,7 @@ router.post('/drafts/:id/digital-product-ideas', asyncRoute(async (req, res) => 
     await tx.officeJob.create({ data: job });
     return { id: job.id, status: 'QUEUED', created: true };
   });
+  if (result.created) wakeJobWorker();
   res.status(result.created ? 202 : 200).json(result);
 }));
 
@@ -433,6 +437,7 @@ router.post('/drafts/:id/creator-followup', asyncRoute(async (req, res) => {
     } });
     return { id, status: 'QUEUED', created: true };
   });
+  if (result.created) wakeJobWorker();
   res.status(result.created ? 202 : 200).json(result);
 }));
 
@@ -576,6 +581,7 @@ router.patch('/admin/video', asyncRoute(async (req, res) => {
   requireAdmin(req);
   if (typeof req.body?.enabled !== 'boolean') throw new WorkflowError('Status saklar video tidak valid.');
   const config = await setVideoEnabled(req.body.enabled);
+  if (config.enabled) wakeVideoWorker();
   res.set('Cache-Control', 'no-store');
   res.json({ enabled: config.enabled, approvedBudgetIdr: config.approvedBudgetIdr });
 }));
@@ -633,6 +639,7 @@ router.post('/videos/:draftId', asyncRoute(async (req, res) => {
       if (active) throw new WorkflowError('Video untuk draf ini masih antre, sedang dibuat, atau hasil tagihannya belum pasti. Tunggu atau periksa OpenRouter sebelum mencoba ulang.', 409);
       return tx.videoJob.create({ data: { draftId: draft.id, activeDraftId: draft.id, prompt: selectedIdea.content }, select: { id: true } });
     });
+    wakeVideoWorker();
     res.status(202).json({ id: job.id });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new WorkflowError('Video untuk draf ini baru saja dimasukkan ke antrean. Periksa statusnya sebelum mencoba lagi.', 409);
@@ -723,7 +730,7 @@ router.patch('/drafts/:id', asyncRoute(async (req, res) => {
         await createContentFlow(
           transaction,
           `Promosi produk digital · ${draft.title}`,
-          `Siapkan materi promosi untuk produk digital yang disetujui. Gunakan hanya isi produk yang diberikan; jangan mengarang validasi pasar, hasil belajar, harga pasar, atau testimoni. Jangan menyuruh audiens membeli, memesan lewat DM, atau membuka link di bio kecuali tautan/cara pemesanan resmi diberikan di isi produk. Jika belum ada, gunakan ajakan non-transaksional dan tandai cara pemesanan sebagai [PERLU KONFIRMASI]. Buat paket promosi yang bisa ditinjau pimpinan, tanpa publikasi atau upload otomatis.\n\nIsi produk:\n${draft.content}`,
+          `Siapkan materi promosi untuk produk digital yang disetujui. Gunakan hanya isi produk yang diberikan; jangan mengarang validasi pasar, hasil belajar, harga pasar, atau testimoni. Jangan menyuruh audiens membeli, memesan lewat DM, atau membuka link di bio kecuali tautan/cara pemesanan resmi diberikan di isi produk. Jika belum ada, gunakan ajakan non-transaksional dan tandai cara pemesanan sebagai [PERLU KONFIRMASI]. Buat paket promosi yang bisa ditinjau pimpinan, tanpa publikasi atau upload otomatis.\n\nIsi produk:\n${draft.content.slice(0, 4000)}`,
           undefined,
           draft.id,
         );
@@ -734,6 +741,7 @@ router.patch('/drafts/:id', asyncRoute(async (req, res) => {
   const draft = action === 'REVISE'
     ? await trackActivity(previous.division, 'REVISE', () => update(text(req.body?.notes, 'Catatan revisi', 4000)))
     : await update('');
+  if (action === 'APPROVE') wakeJobWorker();
   res.json({ draft });
 }));
 

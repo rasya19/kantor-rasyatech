@@ -170,3 +170,23 @@ model BusinessLead {
   @@index([soldAt])
   @@map("business_leads")
 }
+
+model Warung {
+  id             String          @id @default(uuid())
+  name           String
+  normalizedName String          @unique
+  createdAt      DateTime        @default(now())
+  licenses       WarungLicense[]
+}
+
+model WarungLicense {
+  id        String   @id @default(uuid())
+  warungId  String
+  warung    Warung   @relation(fields: [warungId], references: [id], onDelete: Restrict)
+  deviceId  String
+  year      Int
+  code      String
+  createdAt DateTime @default(now())
+
+  @@index([warungId, createdAt])
+}

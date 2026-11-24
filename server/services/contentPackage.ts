@@ -16,10 +16,19 @@ export function contentPackageProblems(content: string): string[] {
   let current: string | undefined;
   for (const line of content.split(/\r?\n/)) {
     const normalized = line.trim().replace(/^#{1,6}\s*/, '').replace(/\*\*/g, '').trim();
-    const heading = sections.find((section) => normalized.toLowerCase().startsWith(`${section.toLowerCase()}:`));
+    const heading = sections.find((section) => {
+      const lowerNorm = normalized.toLowerCase();
+      const lowerSec = section.toLowerCase();
+      return lowerNorm.startsWith(`${lowerSec}:`) || lowerNorm === lowerSec;
+    });
     if (heading) {
       current = heading;
-      found.set(heading, `${found.get(heading) ?? ''} ${normalized.slice(heading.length + 1)}`.trim());
+      const remainder = normalized.slice(heading.length).replace(/^:\s*/, '').trim();
+      if (remainder) {
+        found.set(heading, `${found.get(heading) ?? ''} ${remainder}`.trim());
+      } else if (!found.has(heading)) {
+        found.set(heading, '');
+      }
     } else if (current) {
       found.set(current, `${found.get(current) ?? ''}\n${line}`.trim());
     }

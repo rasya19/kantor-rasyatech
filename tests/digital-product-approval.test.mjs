@@ -202,7 +202,7 @@ test('approving a digital product package queues its promotional content flow on
   assert.equal(createdFlows.length, 1);
   assert.equal(createdFlows[0].sourceDraftId, draftId);
   assert.equal(createdJobs.length, 1);
-  assert.equal(createdJobs[0].staffId, 'trendy');
+  assert.equal(createdJobs[0].staffId, 'clipper');
   assert.equal(createdJobs[0].contentFlowId, createdFlows[0].id);
   assert.match(createdJobs[0].instruction, /Isi produk yang telah ditinjau/);
 });

@@ -162,19 +162,19 @@ async function createVideo(prompt: string): Promise<{ data: Buffer; model: strin
 }
 
 let busy = false;
-export async function processNextVideo(): Promise<void> {
-  if (busy) return;
+export async function processNextVideo(): Promise<boolean> {
+  if (busy) return false;
   busy = true;
   try {
     await prisma.videoJob.updateMany({
       where: { status: 'RUNNING', updatedAt: { lt: new Date(Date.now() - generationTimeoutMs - 60000) } },
       data: { status: 'UNKNOWN', error: 'Pemrosesan OpenRouter terputus; periksa status dan penggunaan di OpenRouter sebelum mencoba ulang.' },
     });
-    if (!await videoEnabled()) return;
+    if (!await videoEnabled()) return false;
     const job = await prisma.videoJob.findFirst({ where: { status: 'QUEUED' }, orderBy: { createdAt: 'asc' } });
-    if (!job) return;
+    if (!job) return false;
     const claim = await prisma.videoJob.updateMany({ where: { id: job.id, status: 'QUEUED' }, data: { status: 'RUNNING' } });
-    if (!claim.count) return;
+    if (!claim.count) return false;
     try {
       const result = await createVideo(job.prompt);
       await mkdir(directory, { recursive: true });
@@ -202,13 +202,45 @@ export async function processNextVideo(): Promise<void> {
         data: { status, ...(status === 'FAILED' ? { activeDraftId: null } : {}), error: message },
       });
     }
+    return true;
   } finally {
     busy = false;
   }
 }
 
+const videoIdleBackoffMs = [10_000, 30_000, 60_000];
+let videoWorkerTimer: ReturnType<typeof setTimeout> | null = null;
+let videoWorkerStarted = false;
+let videoIdleStep = 0;
+
+function scheduleVideoWorker(delayMs: number): void {
+  if (!videoWorkerStarted) return;
+  if (videoWorkerTimer) clearTimeout(videoWorkerTimer);
+  videoWorkerTimer = setTimeout(() => {
+    void (async () => {
+      const worked = await processNextVideo();
+      if (worked) {
+        videoIdleStep = 0;
+        scheduleVideoWorker(3_000);
+      } else {
+        const delay = videoIdleBackoffMs[Math.min(videoIdleStep, videoIdleBackoffMs.length - 1)];
+        videoIdleStep = Math.min(videoIdleStep + 1, videoIdleBackoffMs.length - 1);
+        scheduleVideoWorker(delay);
+      }
+    })().catch((error) => {
+      console.error('[Video OpenRouter] Worker gagal:', error);
+      scheduleVideoWorker(15_000);
+    });
+  }, delayMs);
+}
+
+export function wakeVideoWorker(): void {
+  videoIdleStep = 0;
+  if (videoWorkerStarted) scheduleVideoWorker(50);
+}
+
 export function startVideoWorker(): void {
-  const run = () => { void processNextVideo().catch((error) => console.error('[Video OpenRouter] Worker gagal:', error)); };
-  run();
-  setInterval(run, 5000);
+  videoWorkerStarted = true;
+  videoIdleStep = 0;
+  scheduleVideoWorker(0);
 }

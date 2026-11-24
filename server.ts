@@ -7,6 +7,7 @@ import workflowRoutes from './server/routes/workflowRoutes';
 import jobRoutes from './server/routes/jobRoutes';
 import { startJobWorker } from './server/services/jobService';
 import businessRoutes from './server/routes/businessRoutes';
+import warungRoutes from './server/routes/warungRoutes';
 import { pauseQueuedOpportunityTasks, startOpportunityScheduler } from './server/services/opportunityFlow';
 import { startVideoWorker } from './server/services/videoService';
 import { startDailyDigitalProductScheduler } from './server/services/businessResearch';
@@ -24,6 +25,7 @@ app.use(express.json());
 app.use('/api/workflow', workflowRoutes);
 app.use('/api/office-work', jobRoutes);
 app.use('/api/business', businessRoutes);
+app.use('/api/warung', warungRoutes);
 
 // Health check endpoint
 app.get('/api/health', async (_req: Request, res: Response) => {

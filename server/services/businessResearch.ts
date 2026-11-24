@@ -151,16 +151,13 @@ export function digitalProductResearchValidationProblems(content: string, curren
 async function generateGroundedResearch({ id, title, division, instruction, product, minimumSources = 1, validateContent }: GroundedResearchOptions): Promise<WorkDraft> {
   let response;
   try {
-    response = await generateOpenRouter(`${instruction}\n\nTanggal akses saat ini (WIB): ${currentWibDate()}.`, `${companyMissionInstruction} Semua riset harus memakai pencarian web eksternal dan menyertakan bukti yang dapat diperiksa. Buat laporan bahasa Indonesia yang ringkas untuk pimpinan; ide dan hipotesis bukan bukti permintaan atau pendapatan.`, division, AbortSignal.timeout(opportunityResearchTimeoutMs), true, product);
+    response = await generateOpenRouter(`${instruction}\n\nTanggal akses saat ini (WIB): ${currentWibDate()}.`, `${companyMissionInstruction} Semua riset harus memakai pencarian web eksternal dan menyertakan bukti yang dapat diperiksa. Buat laporan bahasa Indonesia yang ringkas untuk pimpinan; ide dan hipotesis bukan bukti permintaan atau pendapatan.`, division, AbortSignal.timeout(opportunityResearchTimeoutMs), true, product, 2400);
   } catch (error) {
     if (error instanceof OpenRouterError) throw new WorkflowError(error.message, error.status);
     throw error;
   }
   const content = response.content;
   const contentProblems = validateContent?.(content) ?? [];
-  if (contentProblems.length) {
-    throw new WorkflowError(`Riset belum memenuhi pemeriksaan validasi (${contentProblems.join(', ')}). Tidak ada draf yang disimpan; permintaan mungkin tetap ditagih.`, 502);
-  }
   const validSources: { url: string; title: string }[] = [];
   const citations: { text: string; sourceIndexes: number[] }[] = [];
   const sourceIndexByUrl = new Map<string, number>();
@@ -181,14 +178,23 @@ async function generateGroundedResearch({ id, title, division, instruction, prod
       }
     } catch { continue; }
   }
-  if (validSources.length < minimumSources) {
+  if (validSources.length === 0) {
     throw new WorkflowError(`Riset hanya menghasilkan ${validSources.length} sumber web; minimal ${minimumSources} sumber diperlukan. Tidak ada draf yang disimpan; permintaan mungkin tetap ditagih.`, 502);
   }
+  const warnings = [
+    ...contentProblems,
+    ...(validSources.length < minimumSources
+      ? [`sumber web terverifikasi baru ${validSources.length} dari minimal ${minimumSources}`]
+      : []),
+  ];
+  const finalContent = warnings.length
+    ? `[PERLU VERIFIKASI SUMBER — catatan pemeriksaan otomatis: ${warnings.join('; ')}]\n\n${content}`
+    : content;
   const now = new Date().toISOString();
   const draft: WorkDraft = {
     id, ticketId: null, division,
     title,
-    content,
+    content: finalContent,
     grounding: { searchSuggestions: '', sources: validSources, citations },
     status: 'PENDING', createdAt: now, updatedAt: now, ai: { provider: 'openrouter', model: response.model },
   };

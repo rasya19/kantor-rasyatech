@@ -29,19 +29,15 @@ import {
   WebGLRenderer,
 } from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { STAFF } from '../staff';
-import type { OfficeDivision, OfficeJob } from '../workflowTypes';
+import { ACTIVE_STAFF, coreRoomForStaff, getRoomStaff, type CoreRoomId } from '../staff';
+import type { OfficeJob } from '../workflowTypes';
 import type { PrayerBreak } from '../lib/prayerSchedule';
 import { officeActivityAt } from '../lib/officeSchedule';
 
-const officeRooms: { division: OfficeDivision; name: string; color: string; x: number; z: number }[] = [
-  { division: 'finance', name: 'FINANCIAL & REPORTING', color: '#d8b15c', x: -6, z: -9 },
-  { division: 'paud', name: 'SIPUT PAUD', color: '#f4a83c', x: 0, z: -9 },
-  { division: 'posyandu', name: 'SIPUT POSYANDU', color: '#44b68b', x: 6, z: -9 },
-  { division: 'creator', name: 'CONTENT CREATOR', color: '#cb75b5', x: -12, z: -2 },
-  { division: 'engineer', name: 'WEB ENGINEER', color: '#639ddd', x: -12, z: 4 },
-  { division: 'cyber', name: 'CYBER SECURITY', color: '#df7c76', x: 12, z: -2 },
-  { division: 'marketing', name: 'DIGITAL MARKETING', color: '#55b6c4', x: 12, z: 4 },
+const officeRooms: { roomId: CoreRoomId; name: string; color: string; x: number; z: number }[] = [
+  { roomId: 'product_research', name: 'PRODUK & RISET', color: '#10b981', x: -7.5, z: -6.5 },
+  { roomId: 'content_sales', name: 'KONTEN & PENJUALAN', color: '#f43f5e', x: 0, z: -6.5 },
+  { roomId: 'client_service', name: 'LAYANAN KLIEN', color: '#0ea5e9', x: 7.5, z: -6.5 },
 ];
 
 type StaffVisual = {
@@ -222,12 +218,9 @@ function updateChatBubble(bubble: Sprite, message: string, color: string): void 
   material.needsUpdate = true;
 }
 
-function createStaffVisual(world: Group, roomGroup: Group, person: typeof STAFF[number], index: number, room: typeof officeRooms[number]): StaffVisual {
-  const peopleInRoom = STAFF.filter((item) => item.division === person.division);
-  const column = index % 3;
-  const row = Math.floor(index / 3);
-  const x = (column - (Math.min(peopleInRoom.length, 3) - 1) / 2) * 1.55;
-  const z = -1.15 + row * 2.0;
+function createStaffVisual(world: Group, roomGroup: Group, person: typeof ACTIVE_STAFF[number], index: number, room: typeof officeRooms[number]): StaffVisual {
+  const x = index === 0 ? -1.35 : 1.35;
+  const z = -0.55;
 
   const workstation = new Group();
   workstation.position.set(x, 0, z);
@@ -409,48 +402,48 @@ function addRoom(parent: Group, room: typeof officeRooms[number], staffVisuals: 
   const roomGroup = new Group();
   roomGroup.position.set(room.x, 0, room.z);
   parent.add(roomGroup);
-  box(roomGroup, [5.9, 0.3, 5.9], [0, 0.15, 0], '#e7d8bd');
-  box(roomGroup, [5.9, 2.2, 0.22], [0, 1.25, -2.94], '#c4b397');
-  box(roomGroup, [0.22, 2.2, 5.9], [-2.94, 1.25, 0], '#b8a88f');
-  box(roomGroup, [0.22, 2.2, 5.9], [2.94, 1.25, 0], '#b8a88f');
-  box(roomGroup, [1.9, 0.12, 0.12], [0, 0.08, 2.9], '#667f78');
-  box(roomGroup, [0.1, 1.15, 0.1], [-2.25, 0.82, -2.5], room.color);
-  box(roomGroup, [0.1, 1.15, 0.1], [2.25, 0.82, -2.5], room.color);
-  roomGroup.add(label(room.name, [0, 2.0, 0.05], room.color));
+  box(roomGroup, [6.2, 0.3, 5.4], [0, 0.15, 0], '#e7d8bd');
+  box(roomGroup, [6.2, 2.2, 0.22], [0, 1.25, -2.68], '#c4b397');
+  box(roomGroup, [0.22, 2.2, 5.4], [-3.08, 1.25, 0], '#b8a88f');
+  box(roomGroup, [0.22, 2.2, 5.4], [3.08, 1.25, 0], '#b8a88f');
+  box(roomGroup, [2.0, 0.12, 0.12], [0, 0.08, 2.65], '#667f78');
+  box(roomGroup, [0.1, 1.15, 0.1], [-2.4, 0.82, -2.25], room.color);
+  box(roomGroup, [0.1, 1.15, 0.1], [2.4, 0.82, -2.25], room.color);
+  roomGroup.add(label(room.name, [0, 2.05, 0.05], room.color));
 
-  STAFF.filter((person) => person.division === room.division).forEach((person, index) => {
+  getRoomStaff(room.roomId).forEach((person, index) => {
     staffVisuals.set(person.id, createStaffVisual(parent, roomGroup, person, index, room));
   });
 }
 
 function addPrayerRoom(parent: Group) {
   const building = new Group();
-  building.position.set(-17, 0, 11);
+  building.position.set(-10.5, 0, 8.8);
   parent.add(building);
-  box(building, [5.3, 0.36, 4.6], [0, 0.18, 0], '#d9c9a9');
-  box(building, [5.0, 1.8, 4.3], [0, 1.08, 0], '#e6d9bb');
-  box(building, [2.2, 2.0, 0.14], [0, 1.0, 2.17], '#426b5e');
-  box(building, [5.5, 0.22, 4.8], [0, 2.03, 0], '#66866b');
-  const dome = new Mesh(new SphereGeometry(1.05, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), new MeshStandardMaterial({ color: '#479b78', roughness: 0.65 }));
+  box(building, [4.8, 0.36, 4.2], [0, 0.18, 0], '#d9c9a9');
+  box(building, [4.5, 1.8, 3.9], [0, 1.08, 0], '#e6d9bb');
+  box(building, [2.0, 2.0, 0.14], [0, 1.0, 1.98], '#426b5e');
+  box(building, [5.0, 0.22, 4.4], [0, 2.03, 0], '#66866b');
+  const dome = new Mesh(new SphereGeometry(0.95, 24, 16, 0, Math.PI * 2, 0, Math.PI / 2), new MeshStandardMaterial({ color: '#479b78', roughness: 0.65 }));
   dome.position.set(0, 2.14, 0);
   building.add(dome);
-  const minaret = new Mesh(new CylinderGeometry(0.18, 0.25, 2.9, 10), new MeshStandardMaterial({ color: '#e8d9bc', roughness: 0.72 }));
-  minaret.position.set(2.0, 1.45, -1.5);
+  const minaret = new Mesh(new CylinderGeometry(0.16, 0.22, 2.7, 10), new MeshStandardMaterial({ color: '#e8d9bc', roughness: 0.72 }));
+  minaret.position.set(1.8, 1.35, -1.35);
   building.add(minaret);
-  const minaretTop = new Mesh(new ConeGeometry(0.3, 0.65, 10), new MeshStandardMaterial({ color: '#cba55d', roughness: 0.55 }));
-  minaretTop.position.set(2.0, 3.2, -1.5);
+  const minaretTop = new Mesh(new ConeGeometry(0.28, 0.6, 10), new MeshStandardMaterial({ color: '#cba55d', roughness: 0.55 }));
+  minaretTop.position.set(1.8, 2.95, -1.35);
   building.add(minaretTop);
-  building.add(label('MUSHOLA', [0, 3.15, 0.2], '#d9f99d'));
+  building.add(label('MUSHOLA', [0, 3.05, 0.2], '#d9f99d'));
 }
 
 function prayerPosition(index: number): Vector3 {
-  const column = index % 4;
-  const row = Math.floor(index / 4);
-  return new Vector3(-18.65 + column * 0.78, 0, 13.5 + row * 0.68);
+  const column = index % 3;
+  const row = Math.floor(index / 3);
+  return new Vector3(-11.4 + column * 0.9, 0, 11.4 + row * 0.76);
 }
 
 function addPrayerMats(parent: Group): Group[] {
-  return STAFF.map((_, index) => {
+  return ACTIVE_STAFF.map((_, index) => {
     const position = prayerPosition(index);
     const mat = new Group();
     mat.position.set(position.x, 0, position.z);
@@ -476,30 +469,30 @@ function addPrayerMats(parent: Group): Group[] {
 
 function addPool(parent: Group) {
   const pool = new Group();
-  pool.position.set(6, 0, 11);
+  pool.position.set(5.2, 0, 8.8);
   parent.add(pool);
-  box(pool, [8.8, 0.34, 5.3], [0, 0.17, 0], '#e8dcc5');
-  box(pool, [8.0, 0.25, 4.5], [0, 0.36, 0], '#2f6d79');
-  box(pool, [7.6, 0.12, 4.1], [0, 0.5, 0], '#3cb7c2', { metalness: 0.3, roughness: 0.18, transparent: true, opacity: 0.88 });
-  box(pool, [8.0, 0.05, 0.16], [0, 0.58, -2.15], '#fbf4df');
-  box(pool, [8.0, 0.05, 0.16], [0, 0.58, 2.15], '#fbf4df');
-  box(pool, [0.16, 0.05, 4.1], [-3.92, 0.58, 0], '#fbf4df');
-  box(pool, [0.16, 0.05, 4.1], [3.92, 0.58, 0], '#fbf4df');
+  box(pool, [6.6, 0.34, 4.4], [0, 0.17, 0], '#e8dcc5');
+  box(pool, [5.8, 0.25, 3.6], [0, 0.36, 0], '#2f6d79');
+  box(pool, [5.4, 0.12, 3.2], [0, 0.5, 0], '#3cb7c2', { metalness: 0.3, roughness: 0.18, transparent: true, opacity: 0.88 });
+  box(pool, [5.8, 0.05, 0.16], [0, 0.58, -1.7], '#fbf4df');
+  box(pool, [5.8, 0.05, 0.16], [0, 0.58, 1.7], '#fbf4df');
+  box(pool, [0.16, 0.05, 3.2], [-2.82, 0.58, 0], '#fbf4df');
+  box(pool, [0.16, 0.05, 3.2], [2.82, 0.58, 0], '#fbf4df');
   pool.add(label('KOLAM RENANG', [0, 1.35, 0], '#cffafe'));
 }
 
 function addKitchen(parent: Group) {
   const kitchen = new Group();
-  kitchen.position.set(-6, 0, 11);
+  kitchen.position.set(-2.5, 0, 8.8);
   parent.add(kitchen);
-  box(kitchen, [6.8, 0.3, 3.9], [0, 0.15, 0], '#e8dcc5');
-  box(kitchen, [6.8, 2.0, 0.18], [0, 1.1, -1.86], '#d7c6a9');
-  box(kitchen, [0.18, 1.5, 3.8], [-3.3, 0.85, 0], '#b8a88f');
-  box(kitchen, [0.18, 1.5, 3.8], [3.3, 0.85, 0], '#b8a88f');
-  box(kitchen, [2.4, 0.78, 0.62], [-1.75, 0.65, -1.3], '#879b91');
-  box(kitchen, [2.55, 0.12, 0.7], [-1.75, 1.1, -1.3], '#f4eee0');
-  box(kitchen, [0.95, 1.55, 0.8], [2.35, 0.92, -1.25], '#eef2e8');
-  box(kitchen, [0.7, 0.12, 0.7], [2.35, 0.98, -0.78], '#8fd0cc');
+  box(kitchen, [6.0, 0.3, 3.8], [0, 0.15, 0], '#e8dcc5');
+  box(kitchen, [6.0, 2.0, 0.18], [0, 1.1, -1.81], '#d7c6a9');
+  box(kitchen, [0.18, 1.5, 3.7], [-2.9, 0.85, 0], '#b8a88f');
+  box(kitchen, [0.18, 1.5, 3.7], [2.9, 0.85, 0], '#b8a88f');
+  box(kitchen, [2.2, 0.78, 0.62], [-1.55, 0.65, -1.25], '#879b91');
+  box(kitchen, [2.35, 0.12, 0.7], [-1.55, 1.1, -1.25], '#f4eee0');
+  box(kitchen, [0.95, 1.55, 0.8], [2.05, 0.92, -1.2], '#eef2e8');
+  box(kitchen, [0.7, 0.12, 0.7], [2.05, 0.98, -0.73], '#8fd0cc');
   box(kitchen, [1.65, 0.14, 0.95], [0, 0.9, 0.45], '#a66f4c');
   box(kitchen, [0.12, 0.7, 0.12], [-0.62, 0.43, 0.12], '#79543c');
   box(kitchen, [0.12, 0.7, 0.12], [0.62, 0.43, 0.12], '#79543c');
@@ -520,34 +513,34 @@ function addKitchen(parent: Group) {
 
 function addRestroom(parent: Group) {
   const restroom = new Group();
-  restroom.position.set(17, 0, 11);
+  restroom.position.set(11.6, 0, 8.8);
   parent.add(restroom);
-  box(restroom, [4.1, 0.28, 3.5], [0, 0.14, 0], '#e8dcc5');
-  box(restroom, [4.0, 1.8, 0.18], [0, 1.04, -1.66], '#d7c6a9');
-  box(restroom, [0.18, 1.8, 3.3], [-1.92, 1.04, 0], '#c4b397');
-  box(restroom, [0.18, 1.8, 3.3], [1.92, 1.04, 0], '#c4b397');
-  box(restroom, [0.74, 1.55, 0.1], [-0.66, 0.91, -0.56], '#426b5e');
-  box(restroom, [0.74, 1.55, 0.1], [0.66, 0.91, -0.56], '#426b5e');
-  box(restroom, [0.88, 0.12, 0.14], [-0.66, 1.7, -0.56], '#e8dcc5');
-  box(restroom, [0.88, 0.12, 0.14], [0.66, 1.7, -0.56], '#e8dcc5');
-  for (const x of [-0.66, 0.66]) {
-    const bowl = new Mesh(new SphereGeometry(0.25, 16, 10), new MeshStandardMaterial({ color: '#f5f4ed', roughness: 0.28 }));
+  box(restroom, [3.8, 0.28, 3.4], [0, 0.14, 0], '#e8dcc5');
+  box(restroom, [3.7, 1.8, 0.18], [0, 1.04, -1.61], '#d7c6a9');
+  box(restroom, [0.18, 1.8, 3.2], [-1.76, 1.04, 0], '#c4b397');
+  box(restroom, [0.18, 1.8, 3.2], [1.76, 1.04, 0], '#c4b397');
+  box(restroom, [0.74, 1.55, 0.1], [-0.62, 0.91, -0.56], '#426b5e');
+  box(restroom, [0.74, 1.55, 0.1], [0.62, 0.91, -0.56], '#426b5e');
+  box(restroom, [0.88, 0.12, 0.14], [-0.62, 1.7, -0.56], '#e8dcc5');
+  box(restroom, [0.88, 0.12, 0.14], [0.62, 1.7, -0.56], '#e8dcc5');
+  for (const x of [-0.62, 0.62]) {
+    const bowl = new Mesh(new SphereGeometry(0.24, 16, 10), new MeshStandardMaterial({ color: '#f5f4ed', roughness: 0.28 }));
     bowl.scale.set(1, 0.55, 1);
     bowl.position.set(x, 0.42, -1.03);
     restroom.add(bowl);
-    box(restroom, [0.72, 0.08, 0.7], [x, 0.28, -1.03], '#f5f4ed');
+    box(restroom, [0.68, 0.08, 0.66], [x, 0.28, -1.03], '#f5f4ed');
   }
-  box(restroom, [0.72, 0.58, 0.54], [1.25, 0.58, 0.92], '#f4eee0');
-  box(restroom, [0.78, 0.68, 0.04], [1.25, 1.05, 0.55], '#8fd0cc', { metalness: 0.18, roughness: 0.22 });
+  box(restroom, [0.68, 0.58, 0.52], [1.15, 0.58, 0.88], '#f4eee0');
+  box(restroom, [0.74, 0.68, 0.04], [1.15, 1.05, 0.52], '#8fd0cc', { metalness: 0.18, roughness: 0.22 });
   restroom.add(label('TOILET', [0, 2.0, 0], '#d9f99d'));
 }
 
 const restStops: { id: string; position: Vector3 }[] = [
-  { id: 'mushola', position: new Vector3(-17, 0, 13.5) },
-  { id: 'poolside', position: new Vector3(10.8, 0, 11) },
-  { id: 'pantry', position: new Vector3(-10, 0, 11) },
-  { id: 'toilet', position: new Vector3(17, 0, 13.5) },
-  { id: 'garden', position: new Vector3(-18, 0, -14) },
+  { id: 'mushola', position: new Vector3(-10.5, 0, 11.4) },
+  { id: 'poolside', position: new Vector3(5.2, 0, 11.4) },
+  { id: 'pantry', position: new Vector3(-2.5, 0, 11.2) },
+  { id: 'toilet', position: new Vector3(11.6, 0, 11.1) },
+  { id: 'garden', position: new Vector3(-12.5, 0, -9.5) },
 ];
 
 function routeTo(visual: StaffVisual, destination: Vector3, goal: string, reducedMotion: boolean): void {
@@ -571,13 +564,37 @@ function routeTo(visual: StaffVisual, destination: Vector3, goal: string, reduce
   }
 }
 
+function createGrassTexture(): CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.fillStyle = '#7bb472';
+    ctx.fillRect(0, 0, 256, 256);
+    for (let x = 16; x < 256; x += 32) {
+      for (let y = 16; y < 256; y += 32) {
+        ctx.fillStyle = (x + y) % 64 === 0 ? '#8bc47e' : '#71a968';
+        ctx.beginPath();
+        ctx.arc(x, y, 4.5, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+  const texture = new CanvasTexture(canvas);
+  texture.wrapS = texture.wrapT = 1000; // RepeatWrapping
+  texture.repeat.set(12, 11);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
 function createOfficeWorld(canvas: HTMLCanvasElement, onSelect: (staffId: string) => void, onExecutiveClick: () => void) {
   const scene = new Scene();
-  scene.background = new Color('#b5d8d0');
-  scene.fog = new Fog('#b5d8d0', 36, 78);
+  scene.background = new Color('#c6e4dd');
+  scene.fog = new Fog('#c6e4dd', 40, 85);
   const camera = new PerspectiveCamera(38, 1, 0.1, 120);
-  camera.position.set(24, 23, 28);
-  camera.lookAt(0, 0, 0);
+  camera.position.set(17, 16, 20);
+  camera.lookAt(0, 0.5, 0);
   const renderer = new WebGLRenderer({ canvas, antialias: true, alpha: false });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
   renderer.shadowMap.enabled = true;
@@ -586,46 +603,42 @@ function createOfficeWorld(canvas: HTMLCanvasElement, onSelect: (staffId: string
   renderer.toneMapping = ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.15;
 
-  scene.add(new AmbientLight('#ffffff', 1.7));
-  const sunlight = new DirectionalLight('#fff0d6', 3.0);
+  scene.add(new AmbientLight('#ffffff', 1.75));
+  const sunlight = new DirectionalLight('#fff4df', 3.0);
   sunlight.position.set(-15, 28, 12);
   sunlight.castShadow = true;
   sunlight.shadow.mapSize.set(1024, 1024);
-  sunlight.shadow.camera.left = -25;
-  sunlight.shadow.camera.right = 25;
-  sunlight.shadow.camera.top = 22;
-  sunlight.shadow.camera.bottom = -22;
+  sunlight.shadow.camera.left = -22;
+  sunlight.shadow.camera.right = 22;
+  sunlight.shadow.camera.top = 20;
+  sunlight.shadow.camera.bottom = -20;
   scene.add(sunlight);
 
   const world = new Group();
   scene.add(world);
-  const ground = new Mesh(new PlaneGeometry(42, 38), new MeshStandardMaterial({ color: '#77ad70', roughness: 1 }));
+  const grassTexture = createGrassTexture();
+  grassTexture.repeat.set(10, 9);
+  const ground = new Mesh(new PlaneGeometry(34, 30), new MeshStandardMaterial({ map: grassTexture, roughness: 0.96 }));
   ground.rotation.x = -Math.PI / 2;
   ground.receiveShadow = true;
   world.add(ground);
-  for (let x = -20; x <= 20; x += 2) {
-    for (let z = -18; z <= 18; z += 2) {
-      box(world, [0.1, 0.025, 0.1], [x + 0.5, 0.03, z + 0.5], '#8fc47b');
-    }
-  }
-  box(world, [30, 0.06, 1.25], [0, 0.05, -5], '#c5b99f');
-  box(world, [1.2, 0.07, 14], [-9, 0.055, 1], '#c5b99f');
-  box(world, [1.2, 0.07, 14], [9, 0.055, 1], '#c5b99f');
-  box(world, [24, 0.06, 1.25], [0, 0.05, 8], '#c5b99f');
+  box(world, [23, 0.06, 1.25], [0, 0.05, -2.5], '#c5b99f');
+  box(world, [1.25, 0.07, 9], [0, 0.055, 2.0], '#c5b99f');
+  box(world, [25, 0.06, 1.25], [0, 0.05, 6.2], '#c5b99f');
   const staffVisuals = new Map<string, StaffVisual>();
   officeRooms.forEach((room) => addRoom(world, room, staffVisuals));
   addKitchen(world);
   addRestroom(world);
 
   const executive = new Group();
-  executive.position.set(0, 0, 0);
+  executive.position.set(0, 0, 1.6);
   executive.userData.executiveRoom = true;
   world.add(executive);
-  box(executive, [7.0, 0.34, 4.0], [0, 0.17, 0], '#d7c6a9');
-  box(executive, [7.0, 2.3, 0.22], [0, 1.3, -1.9], '#a79780');
-  box(executive, [0.22, 2.3, 3.8], [-3.4, 1.3, 0], '#b5a48c');
-  box(executive, [0.22, 2.3, 3.8], [3.4, 1.3, 0], '#b5a48c');
-  executive.add(label('RUANG PIMPINAN', [0, 2.35, -0.5], '#fde68a'));
+  box(executive, [6.4, 0.34, 3.8], [0, 0.17, 0], '#d7c6a9');
+  box(executive, [6.4, 2.2, 0.22], [0, 1.25, -1.8], '#a79780');
+  box(executive, [0.22, 2.2, 3.6], [-3.1, 1.25, 0], '#b5a48c');
+  box(executive, [0.22, 2.2, 3.6], [3.1, 1.25, 0], '#b5a48c');
+  executive.add(label('RUANG PIMPINAN', [0, 2.3, -0.4], '#fde68a'));
   box(executive, [1.8, 0.18, 0.9], [0, 0.86, 0.2], '#8c5c3c');
   box(executive, [1.2, 0.08, 0.08], [0, 1.0, 0.0], '#e8f4e9');
 
@@ -633,7 +646,7 @@ function createOfficeWorld(canvas: HTMLCanvasElement, onSelect: (staffId: string
   const prayerMats = addPrayerMats(world);
   addPool(world);
 
-  for (const [x, z] of [[-18, -14], [-18, 14], [18, -14], [18, 14]] as const) {
+  for (const [x, z] of [[-13.5, -10.5], [-13.5, 11.5], [13.5, -10.5], [13.5, 11.5]] as const) {
     const tree = new Mesh(new CylinderGeometry(0.15, 0.22, 1.3, 7), new MeshStandardMaterial({ color: '#79583e' }));
     tree.position.set(x, 0.65, z);
     tree.castShadow = true;
@@ -645,11 +658,11 @@ function createOfficeWorld(canvas: HTMLCanvasElement, onSelect: (staffId: string
   }
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 0.7, 0);
+  controls.target.set(0, 0.6, 0.5);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 18;
-  controls.maxDistance = 56;
+  controls.minDistance = 12;
+  controls.maxDistance = 42;
   controls.maxPolarAngle = Math.PI * 0.48;
   controls.minPolarAngle = Math.PI * 0.16;
   controls.update();
@@ -780,8 +793,8 @@ function createOfficeWorld(canvas: HTMLCanvasElement, onSelect: (staffId: string
   }
 
   return {
-    focusDivision(division: OfficeDivision) {
-      const room = officeRooms.find((item) => item.division === division);
+    focusRoom(roomId: CoreRoomId) {
+      const room = officeRooms.find((item) => item.roomId === roomId);
       if (!room) return;
       const nextTarget = new Vector3(room.x, 0.7, room.z);
       const offset = nextTarget.clone().sub(controls.target);
@@ -816,11 +829,11 @@ function createOfficeWorld(canvas: HTMLCanvasElement, onSelect: (staffId: string
         updateStatusBubble(visual.statusBubble, bubbleStatus, stateColor);
         visual.statusBubble.visible = true;
         if (prayerBreak) {
-          const index = STAFF.findIndex((person) => person.id === staffId);
-          routeTo(visual, prayerPosition(index), 'prayer', reducedMotion);
+          const index = ACTIVE_STAFF.findIndex((person) => person.id === staffId);
+          routeTo(visual, prayerPosition(index < 0 ? 0 : index), 'prayer', reducedMotion);
         } else if (visual.delivering) {
-          const personIndex = STAFF.findIndex((person) => person.id === staffId);
-          routeTo(visual, new Vector3(((personIndex % 3) - 1) * 0.7, 0, 3.0), 'deliver-report', reducedMotion);
+          const personIndex = ACTIVE_STAFF.findIndex((person) => person.id === staffId);
+          routeTo(visual, new Vector3(((personIndex % 3) - 1) * 0.75, 0, 4.1), 'deliver-report', reducedMotion);
         } else {
           if (visual.active || visual.queued > 0 || visual.failed || visual.officeActivity === 'WORK') {
             routeTo(visual, visual.home, 'desk', reducedMotion);
@@ -898,8 +911,7 @@ export function OfficeWorld3D({ jobs, selectedStaffId, prayerBreak, reportDelive
   useEffect(() => {
     if (previousSelectionRef.current === selectedStaffId) return;
     previousSelectionRef.current = selectedStaffId;
-    const person = STAFF.find((item) => item.id === selectedStaffId);
-    if (person) worldRef.current?.focusDivision(person.division);
+    worldRef.current?.focusRoom(coreRoomForStaff(selectedStaffId));
   }, [selectedStaffId]);
 
   return <div className="office-3d-scene">

@@ -4,6 +4,9 @@ import { enqueueDigitalProductResearch, isDailyDigitalProductResearchJob, resear
 import { enqueueOpportunitySprint, isOpportunitySprintJob, sourceForOpportunityJob } from '../services/opportunityFlow';
 import { buildExecutiveReport, isLeadStatus, jakartaDateKey, jakartaPeriodBounds, type ReportPeriod } from '../services/executiveReport';
 import { WorkflowError } from '../services/workflowService';
+import { wakeJobWorker } from '../services/jobService';
+import { getUsdIdrRate } from '../services/exchangeRate';
+import { getOpenRouterCredits, getOpenRouterKeyBudget } from '../services/openrouter';
 
 const router = Router();
 const products = ['paud', 'posyandu', 'scanbite', 'konter', 'lorisan', 'digital', 'other'];
@@ -13,13 +16,15 @@ const route = (handler: (req: Request, res: Response) => Promise<void>) =>
 
 router.get('/schedule', (_req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ enabled: process.env.OPPORTUNITY_SCHEDULE_ENABLED !== 'false' });
+  res.json({ enabled: process.env.OPPORTUNITY_SCHEDULE_ENABLED === 'true' });
 });
 
 router.post('/research', route(async (req, res) => {
   if (req.body?.product !== 'paud' && req.body?.product !== 'posyandu' && req.body?.product !== 'opportunities') throw new WorkflowError('Produk tidak valid.');
   if (req.body.product === 'opportunities') {
-    res.status(202).json(await enqueueDigitalProductResearch());
+    const queued = await enqueueDigitalProductResearch();
+    wakeJobWorker();
+    res.status(202).json(queued);
     return;
   }
   res.status(201).json({ draft: await researchProduct(req.body.product) });
@@ -27,6 +32,7 @@ router.post('/research', route(async (req, res) => {
 
 router.post('/opportunities/sprint', route(async (_req, res) => {
   const result = await enqueueOpportunitySprint();
+  if (!result.alreadyActive) wakeJobWorker();
   res.set('Cache-Control', 'no-store');
   res.status(result.alreadyActive ? 200 : 202).json(result);
 }));
@@ -69,6 +75,7 @@ router.post('/opportunities/jobs/:id/start', route(async (req, res) => {
     data: { status: 'QUEUED' },
   });
   if (!started.count) throw new WorkflowError('Status tugas berubah. Muat ulang antrean dan coba lagi.', 409);
+  wakeJobWorker();
   res.status(202).json({ success: true });
 }));
 
@@ -96,6 +103,7 @@ router.post('/daily-product/jobs/:id/start', route(async (req, res) => {
     data: { status: 'QUEUED' },
   });
   if (!started.count) throw new WorkflowError('Status tugas berubah. Muat ulang antrean dan coba lagi.', 409);
+  wakeJobWorker();
   res.status(202).json({ success: true });
 }));
 
@@ -113,7 +121,7 @@ router.get('/executive-report', route(async (req, res) => {
   const bounds = jakartaPeriodBounds(date, period);
   if (!bounds) throw new WorkflowError('Tanggal laporan tidak valid.');
   const range = { gte: bounds.start, lt: bounds.end };
-  const [transactions, usage, leads, recentLeads, jobs, draftRecords] = await Promise.all([
+  const [transactions, usage, leads, recentLeads, jobs, draftRecords, rateInfo, keyBudgetResult, creditsResult] = await Promise.all([
     prisma.financeTransaction.findMany({
       where: { date: { gte: bounds.startDate, lte: bounds.endDate }, voidedAt: null },
       select: { product: true, kind: true, amount: true },
@@ -142,15 +150,26 @@ router.get('/executive-report', route(async (req, res) => {
       take: 100,
       select: { id: true, data: true, createdAt: true },
     }),
+    getUsdIdrRate(),
+    getOpenRouterKeyBudget(AbortSignal.timeout(4000)).catch(() => null),
+    getOpenRouterCredits(AbortSignal.timeout(4000)).catch(() => null),
   ]);
-  const configuredRate = process.env.OPENROUTER_USD_IDR?.trim();
-  const parsedRate = configuredRate ? Number(configuredRate) : null;
-  const usdIdr = parsedRate !== null && Number.isFinite(parsedRate) && parsedRate > 0 ? parsedRate : null;
+  const usdIdr = rateInfo.rate;
   res.set('Cache-Control', 'no-store');
   res.json({
     report: {
       ...buildExecutiveReport({ date, period, startDate: bounds.startDate, endDate: bounds.endDate, transactions, usage, leads, usdIdr }),
-      exchangeRateInvalid: Boolean(configuredRate) && usdIdr === null,
+      exchangeRateInvalid: rateInfo.envInvalid && usdIdr === null,
+      exchangeRateSource: rateInfo.source,
+      exchangeRateProvider: rateInfo.provider,
+      exchangeRateUpdatedAt: rateInfo.updatedAt,
+      openRouterLive: {
+        keyLimitUsd: keyBudgetResult ? keyBudgetResult.limitUsd : null,
+        keyRemainingUsd: keyBudgetResult ? keyBudgetResult.remainingUsd : null,
+        accountTotalCredits: creditsResult ? creditsResult.totalCredits : null,
+        accountTotalUsage: creditsResult ? creditsResult.totalUsage : null,
+        accountRemainingCredits: creditsResult ? Math.max(0, creditsResult.totalCredits - creditsResult.totalUsage) : null,
+      },
       recentLeads: recentLeads.map((lead) => ({ ...lead, createdAt: lead.createdAt.toISOString() })),
       incomeSourceConnected: false,
       externalExpensesAutoTracked: false,

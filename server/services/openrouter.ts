@@ -7,19 +7,24 @@ const defaultModels: Record<OfficeDivision, string> = {
   posyandu: 'google/gemini-2.5-flash',
   creator: 'deepseek/deepseek-chat',
   engineer: 'qwen/qwen-2.5-coder-32b-instruct',
-  cyber: 'anthropic/claude-3.5-sonnet',
+  cyber: 'google/gemini-2.5-flash',
   finance: 'google/gemini-2.5-flash',
   marketing: 'google/gemini-2.5-flash',
 };
 const defaultFallbacks: Record<OfficeDivision, string[]> = {
-  paud: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
-  posyandu: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
-  creator: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
-  engineer: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
-  cyber: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
-  finance: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
-  marketing: ['anthropic/claude-sonnet-4.5', 'google/gemini-2.5-pro'],
+  paud: ['deepseek/deepseek-chat', 'qwen/qwen-2.5-72b-instruct'],
+  posyandu: ['deepseek/deepseek-chat', 'qwen/qwen-2.5-72b-instruct'],
+  creator: ['google/gemini-2.5-flash', 'qwen/qwen-2.5-72b-instruct'],
+  engineer: ['deepseek/deepseek-chat', 'google/gemini-2.5-flash'],
+  cyber: ['deepseek/deepseek-chat', 'qwen/qwen-2.5-72b-instruct'],
+  finance: ['deepseek/deepseek-chat', 'qwen/qwen-2.5-72b-instruct'],
+  marketing: ['deepseek/deepseek-chat', 'qwen/qwen-2.5-72b-instruct'],
 };
+
+export function defaultMaxTokens(): number {
+  const configured = Number(process.env.OPENROUTER_DEFAULT_MAX_TOKENS);
+  return Number.isInteger(configured) && configured > 0 ? configured : 2400;
+}
 
 export class OpenRouterError extends Error {
   constructor(message: string, public readonly status = 502) { super(message); }
@@ -140,12 +145,20 @@ export type OpenRouterResponse = {
   model: string;
   usage: { promptTokens: number | null; completionTokens: number | null; costUsd: number | null; available: boolean };
 };
-export async function generateOpenRouter(instruction: string, system: string, division?: OfficeDivision, signal?: AbortSignal, web = false, product?: string): Promise<OpenRouterResponse> {
+export async function generateOpenRouter(instruction: string, system: string, division?: OfficeDivision, signal?: AbortSignal, web = false, product?: string, maxTokens?: number): Promise<OpenRouterResponse> {
   await checkBudget(signal);
   const models = openRouterModels(division);
+  const resolvedMaxTokens = typeof maxTokens === 'number' && Number.isInteger(maxTokens) && maxTokens > 0
+    ? maxTokens
+    : defaultMaxTokens();
   const result = await openRouterRequest('/chat/completions', {
     method: 'POST', signal,
-    body: JSON.stringify({ models, messages: [{ role: 'system', content: system }, { role: 'user', content: instruction }], ...(web ? { plugins: [{ id: 'web', engine: 'exa', max_results: 5 }] } : {}) }),
+    body: JSON.stringify({
+      models,
+      max_tokens: resolvedMaxTokens,
+      messages: [{ role: 'system', content: system }, { role: 'user', content: instruction }],
+      ...(web ? { plugins: [{ id: 'web', engine: 'exa', max_results: 5 }] } : {}),
+    }),
   });
   if (!result || typeof result !== 'object' || !('choices' in result) || !Array.isArray(result.choices) || !result.choices[0] || typeof result.choices[0] !== 'object') throw new OpenRouterError('OpenRouter tidak mengembalikan pilihan respons yang valid.');
   const choice = result.choices[0];

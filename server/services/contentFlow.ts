@@ -5,7 +5,7 @@ type Transaction = Prisma.TransactionClient;
 
 export async function createContentFlow(tx: Transaction, title: string, instruction: string, id: string = randomUUID(), sourceDraftId?: string): Promise<void> {
   await tx.contentFlow.create({ data: { id, ...(sourceDraftId ? { sourceDraftId } : {}) } });
-  await tx.officeJob.create({ data: { id, division: 'creator', staffId: 'trendy', title, instruction, contentFlowId: id } });
+  await tx.officeJob.create({ data: { id, division: 'creator', staffId: 'clipper', title, instruction, contentFlowId: id } });
 }
 
 export async function forwardContentStage(tx: Transaction, flowId: string, currentStaff: string, content: string, sourceContext?: string): Promise<void> {

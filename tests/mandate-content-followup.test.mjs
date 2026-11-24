@@ -60,7 +60,7 @@ test('approved product-research content mandate is forwarded to Trendy once', as
   assert.equal(flows.length, 1);
   assert.equal(flows[0].sourceDraftId, draftId);
   assert.equal(jobs.length, 1);
-  assert.equal(jobs[0].staffId, 'trendy');
+  assert.equal(jobs[0].staffId, 'clipper');
   assert.equal(jobs[0].division, 'creator');
   assert.match(jobs[0].instruction, /laporan yang disetujui/);
   assert.match(jobs[0].instruction, /jangan.*memublikasikan video/i);
@@ -138,6 +138,6 @@ test('approving a matching engineer research mandate automatically queues Trendy
   assert.equal(flows.length, 1);
   assert.equal(flows[0].sourceDraftId, draftId);
   assert.equal(jobs.length, 1);
-  assert.equal(jobs[0].staffId, 'trendy');
+  assert.equal(jobs[0].staffId, 'clipper');
   assert.equal(jobs[0].contentFlowId, flows[0].id);
 });

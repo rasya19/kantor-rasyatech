@@ -104,7 +104,7 @@ test('approving a marketing manager report forwards it to Trendy, exactly once',
   assert.equal(flows[0].sourceDraftId, record.id);
   assert.equal(jobs.length, 1);
   assert.equal(jobs[0].division, 'creator');
-  assert.equal(jobs[0].staffId, 'trendy');
+  assert.equal(jobs[0].staffId, 'clipper');
   assert.equal(jobs[0].contentFlowId, flows[0].id);
   assert.match(jobs[0].instruction, /Fitur terverifikasi: PPDB Online/);
   assert.match(jobs[0].instruction, /tautan\/cara pemesanan resmi ada di brief/);
@@ -115,7 +115,7 @@ test('approving a marketing manager report forwards it to Trendy, exactly once',
   assert.equal(statusData.forwarded, true);
   assert.equal(statusData.flowId, flows[0].id);
   assert.equal(statusData.sourceBriefLinked, true);
-  assert.deepEqual(statusData.stages.map(({ staffId, status }) => ({ staffId, status })), [{ staffId: 'trendy', status: 'QUEUED' }]);
+  assert.deepEqual(statusData.stages.map(({ staffId, status }) => ({ staffId, status })), [{ staffId: 'clipper', status: 'QUEUED' }]);
   jobs[0].status = 'FAILED';
   jobs[0].error = 'Provider unavailable';
   const failedStatus = await fetch(`${base}/drafts/${record.id}/marketing-content-followup`);

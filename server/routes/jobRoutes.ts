@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
-import { listJobs } from '../services/jobService';
+import { listJobs, wakeJobWorker } from '../services/jobService';
 import { WorkflowError } from '../services/workflowService';
 import { getStaff, ticketStaff } from '../../src/staff';
 import { isOfficeDivision } from '../../src/workflowTypes';
@@ -32,12 +32,14 @@ router.post('/jobs', route(async (req, res) => {
   if (division === 'creator' && staffId === 'trendy') {
     const id = randomUUID();
     await prisma.$transaction((tx) => createContentFlow(tx, `Ide Trendy: ${instruction.slice(0, 80)}`, instruction, id));
+    wakeJobWorker();
     res.status(202).json({ id });
   } else {
     const job = await prisma.officeJob.create({
       data: { division, staffId, title: `Mandat ${staff.name}: ${instruction.slice(0, 80)}`, instruction },
       select: { id: true },
     });
+    wakeJobWorker();
     res.status(202).json({ id: job.id });
   }
 }));
@@ -76,6 +78,7 @@ router.post('/content-flow/from-draft/:id', route(async (req, res) => {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') throw new WorkflowError('Laporan ini sudah diteruskan ke Script-AI.', 409);
     throw error;
   }
+  wakeJobWorker();
   res.status(202).json({ id: flow });
 }));
 
@@ -95,6 +98,7 @@ router.post('/tickets', route(async (req, res) => {
     } });
     return created;
   });
+  wakeJobWorker();
   res.status(201).json({ ticket });
 }));
 
@@ -110,6 +114,7 @@ router.post('/tickets/:id/jobs', route(async (req, res) => {
     title: `Laporan ${ticket.division.toUpperCase()}: ${ticket.title}`,
     instruction: `Buat laporan untuk pimpinan berdasarkan tiket berikut. Jangan menganggap bug sudah terverifikasi atau mengarang fakta.\nProduk: ${ticket.division}\nKategori: ${ticket.category}\nJudul: ${ticket.title}\nLaporan klien: ${ticket.description}\nCatatan admin: ${ticket.notes}`,
   }, select: { id: true } });
+  wakeJobWorker();
   res.status(202).json({ id: job.id });
 }));
 
@@ -119,6 +124,7 @@ router.post('/jobs/:id/retry', route(async (req, res) => {
     data: { status: 'QUEUED', error: null, claimToken: null, leaseUntil: null },
   });
   if (result.count) {
+    wakeJobWorker();
     res.json({ success: true, alreadyActive: false });
     return;
   }
