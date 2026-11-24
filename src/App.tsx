@@ -448,6 +448,7 @@ export default function App() {
   const completedJobs = useRef('');
   const wakeJobsPollRef = useRef<() => void>(() => {});
   const wakeVideosPollRef = useRef<() => void>(() => {});
+  const processingServerlessJobRef = useRef(false);
   const menuRef = useRef<HTMLDialogElement>(null);
 
   const selectedTicket = tickets.find((ticket) => ticket.id === selectedTicketId);
@@ -581,6 +582,17 @@ export default function App() {
             if (completed !== completedJobs.current) {
               completedJobs.current = completed;
               void load().catch((err) => setError(message(err)));
+            }
+            const hasQueued = snapshot.jobs.some((job) => job.status === 'QUEUED');
+            const hasRunning = snapshot.jobs.some((job) => job.status === 'RUNNING');
+            if (snapshot.serverless && hasQueued && !hasRunning && !processingServerlessJobRef.current) {
+              processingServerlessJobRef.current = true;
+              void workflowClient.processNextJob()
+                .catch((err) => console.warn('[Antrean serverless] Pemrosesan gagal:', err))
+                .finally(() => {
+                  processingServerlessJobRef.current = false;
+                  if (active) wakeJobsPollRef.current();
+                });
             }
             delay = nextPollDelayMs(hasActiveStatus(snapshot.jobs), JOBS_ACTIVE_POLL_MS, JOBS_IDLE_POLL_MS);
           }

@@ -3,11 +3,8 @@ import express, { type Request, type Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { prisma } from './server/lib/prisma';
-import workflowRoutes from './server/routes/workflowRoutes';
-import jobRoutes from './server/routes/jobRoutes';
+import { createApiApp } from './server/app';
 import { startJobWorker } from './server/services/jobService';
-import businessRoutes from './server/routes/businessRoutes';
-import warungRoutes from './server/routes/warungRoutes';
 import { pauseQueuedOpportunityTasks, startOpportunityScheduler } from './server/services/opportunityFlow';
 import { startVideoWorker } from './server/services/videoService';
 import { startDailyDigitalProductScheduler } from './server/services/businessResearch';
@@ -15,29 +12,9 @@ import { startDailyDigitalProductScheduler } from './server/services/businessRes
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
+const app = createApiApp();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const HOST = process.env.HOST || '127.0.0.1';
-
-app.use(express.json());
-
-// Mount Modular API Routes
-app.use('/api/workflow', workflowRoutes);
-app.use('/api/office-work', jobRoutes);
-app.use('/api/business', businessRoutes);
-app.use('/api/warung', warungRoutes);
-
-// Health check endpoint
-app.get('/api/health', async (_req: Request, res: Response) => {
-  try {
-    await prisma.$queryRaw`SELECT 1`;
-    res.json({ status: 'ok', database: 'connected', service: 'Kantor AI PT Rasyatech Digital Zenith', time: new Date().toISOString() });
-  } catch (error) {
-    const errorName = error instanceof Error ? error.name : 'UnknownError';
-    console.error(`[Database] Pemeriksaan health gagal (${errorName}).`);
-    res.status(503).json({ status: 'unavailable', database: 'unavailable', service: 'Kantor AI PT Rasyatech Digital Zenith' });
-  }
-});
 
 // Production / Dev Vite Server Mounting
 async function bootstrapServer() {

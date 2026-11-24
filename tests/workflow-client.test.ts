@@ -26,3 +26,17 @@ test('assistant request surfaces JSON API errors', async (t) => {
     /Kredit tidak cukup/,
   );
 });
+
+test('jobs request surfaces readable non-JSON HTTP 404 errors instead of raw SyntaxError', async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => new Response('The page could not be found', {
+    status: 404,
+    headers: { 'content-type': 'text/plain' },
+  });
+
+  await assert.rejects(
+    workflowClient.jobs(),
+    /Respons server bukan JSON \(HTTP 404, text\/plain\)/i,
+  );
+});

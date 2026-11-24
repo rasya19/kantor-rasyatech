@@ -1,6 +1,6 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { prisma } from '../lib/prisma';
-import { listJobs, wakeJobWorker } from '../services/jobService';
+import { listJobs, processNextJob, wakeJobWorker } from '../services/jobService';
 import { WorkflowError } from '../services/workflowService';
 import { getStaff, ticketStaff } from '../../src/staff';
 import { isOfficeDivision } from '../../src/workflowTypes';
@@ -20,7 +20,13 @@ function required(value: unknown, name: string, limit: number): string {
 
 router.get('/jobs', route(async (_req, res) => {
   res.set('Cache-Control', 'no-store');
-  res.json({ jobs: await listJobs() });
+  res.json({ jobs: await listJobs(), serverless: process.env.VERCEL === '1' });
+}));
+
+router.post('/process', route(async (_req, res) => {
+  const worked = await processNextJob();
+  res.set('Cache-Control', 'no-store');
+  res.json({ worked });
 }));
 
 router.post('/jobs', route(async (req, res) => {

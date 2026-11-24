@@ -6,7 +6,9 @@ import { videoEnabled } from './videoRuntimeConfig';
 
 export { videoEnabled } from './videoRuntimeConfig';
 
-const directory = path.resolve(process.cwd(), 'video-storage');
+const directory = process.env.VERCEL === '1'
+  ? path.join('/tmp', 'video-storage')
+  : path.resolve(process.cwd(), 'video-storage');
 const defaultModel = 'heygen/heygen-video-1';
 const maxVideoBytes = 100_000_000;
 const pollIntervalMs = 10_000;

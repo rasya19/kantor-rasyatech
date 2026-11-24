@@ -7,3 +7,6 @@ video-storage/
 *.log
 .env*
 !.env.example
+
+.vercel
+.env*

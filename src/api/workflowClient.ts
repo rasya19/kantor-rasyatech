@@ -1,12 +1,7 @@
 import type { ActivitySnapshot, DraftEvent, OfficeJob, OfficeDivision, Ticket, TicketCategory, TicketDivision, TicketStatus, VideoControlStatus, WorkDraft } from '../workflowTypes';
 import { OFFICE_DIVISIONS } from '../workflowTypes';
 
-async function request<T>(path: string, method = 'GET', body?: object): Promise<T> {
-  const response = await fetch(`/api/workflow${path}`, {
-    method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
-    body: body ? JSON.stringify(body) : undefined,
-  });
+async function parseJsonResponse<T>(response: Response, fallbackError: string): Promise<T> {
   const responseBody = await response.text();
   const contentType = response.headers.get('content-type')?.split(';', 1)[0] || 'tidak diketahui';
   let data: unknown;
@@ -22,18 +17,33 @@ async function request<T>(path: string, method = 'GET', body?: object): Promise<
   if (!response.ok) {
     const errorMessage = data && typeof data === 'object' && 'error' in data && typeof data.error === 'string'
       ? data.error
-      : `Kesalahan server (${response.status}).`;
+      : fallbackError;
     throw new Error(errorMessage);
   }
   return data as T;
 }
 
+async function request<T>(path: string, method = 'GET', body?: object): Promise<T> {
+  const response = await fetch(`/api/workflow${path}`, {
+    method,
+    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  return parseJsonResponse<T>(response, `Kesalahan server (${response.status}).`);
+}
+
 export const workflowClient = {
   jobs: async () => {
     const response = await fetch('/api/office-work/jobs', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Antrean tidak tersedia.');
-    return data as { jobs: OfficeJob[] };
+    return parseJsonResponse<{ jobs: OfficeJob[]; serverless?: boolean }>(response, 'Antrean tidak tersedia.');
+  },
+  processNextJob: async () => {
+    const response = await fetch('/api/office-work/process', {
+      method: 'POST',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(55_000),
+    });
+    return parseJsonResponse<{ worked: boolean }>(response, 'Gagal memproses antrean tugas.');
   },
   enqueue: async (division: OfficeDivision, staffId: string, instruction: string) => {
     const response = await fetch('/api/office-work/jobs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ division, staffId, instruction }) });
