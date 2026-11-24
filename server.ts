@@ -13,21 +13,32 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = createApiApp();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
-const HOST = process.env.HOST || '127.0.0.1';
+const PORT = process.env.NODE_ENV === 'production'
+  ? (process.env.PORT ? parseInt(process.env.PORT, 10) : 3000)
+  : 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // Production / Dev Vite Server Mounting
 async function bootstrapServer() {
+  let dbReady = false;
   if (!process.env.DATABASE_URL?.trim()) {
-    throw new Error('DATABASE_URL belum diatur.');
-  }
-  try {
-    await prisma.$connect();
-    await prisma.$queryRaw`SELECT 1`;
-  } catch (error) {
-    const errorName = error instanceof Error ? error.name : 'UnknownError';
-    console.error(`[Database] Pemeriksaan koneksi gagal (${errorName}). Periksa DATABASE_URL, jaringan, SSL, dan status migrasi.`);
-    throw new Error('Database readiness check gagal.');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('DATABASE_URL belum diatur.');
+    }
+    console.warn('[Database] DATABASE_URL belum diatur. Server dev tetap berjalan tanpa worker database.');
+  } else {
+    try {
+      await prisma.$connect();
+      await prisma.$queryRaw`SELECT 1`;
+      dbReady = true;
+    } catch (error) {
+      const errorName = error instanceof Error ? error.name : 'UnknownError';
+      console.error(`[Database] Pemeriksaan koneksi gagal (${errorName}). Periksa DATABASE_URL, jaringan, SSL, dan status migrasi.`);
+      if (process.env.NODE_ENV === 'production') {
+        throw new Error('Database readiness check gagal.');
+      }
+      console.warn('[Database] Server dev tetap berjalan tanpa worker database.');
+    }
   }
 
   if (process.env.NODE_ENV === 'production') {
@@ -45,17 +56,16 @@ async function bootstrapServer() {
     app.use(vite.middlewares);
   }
 
-  const pausedSprintTasks = await pauseQueuedOpportunityTasks();
-  if (pausedSprintTasks) console.log(`[Antrean kantor] ${pausedSprintTasks} tugas sprint ditahan; pilih tugas satu per satu dari Peluang & Keuangan.`);
-  startDailyDigitalProductScheduler();
-  startOpportunityScheduler();
-  startJobWorker();
-  startVideoWorker();
+  if (dbReady) {
+    const pausedSprintTasks = await pauseQueuedOpportunityTasks();
+    if (pausedSprintTasks) console.log(`[Antrean kantor] ${pausedSprintTasks} tugas sprint ditahan; pilih tugas satu per satu dari Peluang & Keuangan.`);
+    startDailyDigitalProductScheduler();
+    startOpportunityScheduler();
+    startJobWorker();
+    startVideoWorker();
+  }
   app.listen(PORT, HOST, () => {
     console.log(`[Kantor AI Server] Berjalan pada http://${HOST}:${PORT}`);
-    if (HOST !== '127.0.0.1' && HOST !== 'localhost') {
-      console.warn('[Kantor AI Server] Server tidak memiliki autentikasi; jangan buka akses jaringan tanpa proteksi tambahan.');
-    }
   });
 }
 
