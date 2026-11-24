@@ -55,3 +55,22 @@ test('creator result actions describe free manual editing, JSON guide, and scrip
 test('CapCut export rejects packages without voiceover text', () => {
   assert.throws(() => createCapCutExport('Kosong', 'Caption: tanpa narasi'), /tidak berisi hook atau naskah narasi/);
 });
+
+test('CapCut export parses numbered and bulleted markdown section headings', () => {
+  const numbered = [
+    '1. **Judul Tren:** Ide warung',
+    '2. **Konsep:** Edukasi',
+    '- **Hook 3 Detik:** Pernah uang dagang tercampur?',
+    '4. **Naskah Narasi:**',
+    'Scene 1: Pernah uang dagang tercampur? Mulai catat kas harian sekarang.',
+    '5. **Caption:** Yuk rapi #umkm',
+    '6. **Target Platform:** TikTok, Reels, Shorts',
+    '7. **Tata Letak Visual:**',
+    'Scene 1: Rekaman layar tabel kas 9:16.',
+    '8. **Hal yang Perlu Diverifikasi:** Harga promo.',
+  ].join('\n');
+  const result = createCapCutExport('Warung', numbered);
+  assert.equal(result.json.scenes.length, 1);
+  assert.equal(result.json.scenes[0].voiceoverText, 'Pernah uang dagang tercampur? Mulai catat kas harian sekarang.');
+  assert.equal(result.json.scenes[0].visualPrompt, 'Rekaman layar tabel kas 9:16.');
+});

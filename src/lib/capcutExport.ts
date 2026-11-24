@@ -25,11 +25,22 @@ function parseSections(content: string): Partial<Record<Section, string>> {
   const parsed: Partial<Record<Section, string>> = {};
   let current: Section | undefined;
   for (const line of content.split(/\r?\n/)) {
-    const normalized = line.trim().replace(/^#{1,6}\s*/, '').replace(/\*\*/g, '').trim();
-    const heading = sections.find((section) => normalized.toLowerCase().startsWith(`${section.toLowerCase()}:`));
+    const normalized = line
+      .trim()
+      .replace(/^#{1,6}\s*/, '')
+      .replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '')
+      .replace(/[*_`]+/g, '')
+      .replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '')
+      .trim();
+    const heading = sections.find((section) => {
+      const lowerNorm = normalized.toLowerCase();
+      const lowerSec = section.toLowerCase();
+      return lowerNorm === lowerSec || lowerNorm.startsWith(`${lowerSec}:`) || lowerNorm.startsWith(`${lowerSec} :`);
+    });
     if (heading) {
       current = heading;
-      parsed[heading] = [parsed[heading], normalized.slice(heading.length + 1)].filter(Boolean).join('\n').trim();
+      const remainder = normalized.slice(heading.length).replace(/^\s*:\s*/, '').trim();
+      parsed[heading] = [parsed[heading], remainder].filter(Boolean).join('\n').trim();
     } else if (current) {
       parsed[current] = [parsed[current], line].filter(Boolean).join('\n').trim();
     }

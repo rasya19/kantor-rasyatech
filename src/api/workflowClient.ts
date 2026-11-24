@@ -34,7 +34,7 @@ async function request<T>(path: string, method = 'GET', body?: object): Promise<
 
 export const workflowClient = {
   jobs: async () => {
-    const response = await fetch('/api/office-work/jobs', { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    const response = await fetch('/api/office-work/jobs', { cache: 'no-store', signal: AbortSignal.timeout(15_000) });
     return parseJsonResponse<{ jobs: OfficeJob[]; serverless?: boolean }>(response, 'Antrean tidak tersedia.');
   },
   processNextJob: async () => {
@@ -91,7 +91,7 @@ export const workflowClient = {
     return data as { id: string };
   },
   contentContinuation: async (id: string) => {
-    const response = await fetch(`/api/office-work/content-flow/from-draft/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    const response = await fetch(`/api/office-work/content-flow/from-draft/${encodeURIComponent(id)}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Gagal memeriksa alur konten.');
     return data as { eligible: boolean; forwarded: boolean };

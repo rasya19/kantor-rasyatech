@@ -55,7 +55,13 @@ export function videoDurationForPrompt(prompt: string, supportedDurations: numbe
 export function videoScriptFromContent(content: string): string {
   const sections = new Set(['Judul Tren', 'Konsep', 'Hook 3 Detik', 'Caption', 'Target Platform', 'Tata Letak Visual', 'Hal yang Perlu Diverifikasi']);
   const lines = content.split(/\r?\n/);
-  const normalize = (line: string) => line.trim().replace(/^#{1,6}\s*/, '').replace(/\*\*/g, '').trim();
+  const normalize = (line: string) => line
+    .trim()
+    .replace(/^#{1,6}\s*/, '')
+    .replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '')
+    .replace(/[*_`]+/g, '')
+    .replace(/^\s*(?:[-*•]|\d+[.)])\s*/, '')
+    .trim();
   const start = lines.findIndex((line) => /^Naskah Narasi\s*:/i.test(normalize(line)));
   if (start < 0) {
     throw new OpenRouterError('Paket konten tidak memiliki bagian Naskah Narasi. Perbaiki draf sebelum membuat video.', 400);

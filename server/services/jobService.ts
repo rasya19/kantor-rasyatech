@@ -125,15 +125,9 @@ export async function processNextJob(): Promise<boolean> {
       let markDigitalProductPackage = isDigitalProductPackage;
 
       if (isContentPackage) {
-        const problems = contentPackageProblems(finalContent);
+        const problems = contentPackageProblems(finalContent, job.instruction);
         if (problems.length) {
-          const severelyIncomplete = problems.length >= 3 ||
-            problems.includes('Naskah Narasi') ||
-            problems.includes('Ajakan pembelian tanpa tautan resmi yang diberikan');
-          if (severelyIncomplete) {
-            throw new Error(`Paket konten AI belum lengkap: ${problems.join(', ')}. Coba lagi.`);
-          }
-          // Keep minor format misses instead of discarding already-billed AI output.
+          // Keep partial format instead of discarding already-billed AI output.
           finalContent = `[PERLU LENGKAPI FORMAT — bagian belum terisi: ${problems.join(', ')}]\n\n${finalContent}`;
           markContentPackage = false;
         }
@@ -141,9 +135,6 @@ export async function processNextJob(): Promise<boolean> {
       if (isDigitalProductPackage) {
         const problems = digitalProductPackageProblems(finalContent);
         if (problems.length) {
-          if (problems.length >= 4) {
-            throw new Error(`Produk digital AI belum siap dijadikan PDF: ${problems.join(', ')}. Coba lagi.`);
-          }
           finalContent = `[PERLU LENGKAPI FORMAT PDF — bagian belum terisi: ${problems.join(', ')}]\n\n${finalContent}`;
           markDigitalProductPackage = false;
         }
