@@ -1,10 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { prisma } from '../lib/prisma';
-import { checkBudget, openRouterFetch, openRouterRequest, OpenRouterError } from './openrouter';
-import { videoEnabled } from './videoRuntimeConfig';
+import { prisma } from '../lib/prisma.js';
+import { checkBudget, openRouterFetch, openRouterRequest, OpenRouterError } from './openrouter.js';
+import { videoEnabled } from './videoRuntimeConfig.js';
 
-export { videoEnabled } from './videoRuntimeConfig';
+export { videoEnabled } from './videoRuntimeConfig.js';
 
 const directory = process.env.VERCEL === '1'
   ? path.join('/tmp', 'video-storage')

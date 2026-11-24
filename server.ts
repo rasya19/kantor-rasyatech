@@ -2,12 +2,12 @@ import 'dotenv/config';
 import express, { type Request, type Response } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { prisma } from './server/lib/prisma';
-import { createApiApp } from './server/app';
-import { startJobWorker } from './server/services/jobService';
-import { pauseQueuedOpportunityTasks, startOpportunityScheduler } from './server/services/opportunityFlow';
-import { startVideoWorker } from './server/services/videoService';
-import { startDailyDigitalProductScheduler } from './server/services/businessResearch';
+import { prisma } from './server/lib/prisma.js';
+import { createApiApp } from './server/app.js';
+import { startJobWorker } from './server/services/jobService.js';
+import { pauseQueuedOpportunityTasks, startOpportunityScheduler } from './server/services/opportunityFlow.js';
+import { startVideoWorker } from './server/services/videoService.js';
+import { startDailyDigitalProductScheduler } from './server/services/businessResearch.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

@@ -1,7 +1,7 @@
-import { generateOpenRouter, getOpenRouterCredits, getOpenRouterKeyBudget, OpenRouterError } from './openrouter';
-import { prisma } from '../lib/prisma';
-import { jakartaDateKey, jakartaPeriodBounds } from './executiveReport';
-import { WorkflowError } from './workflowService';
+import { generateOpenRouter, getOpenRouterCredits, getOpenRouterKeyBudget, OpenRouterError } from './openrouter.js';
+import { prisma } from '../lib/prisma.js';
+import { jakartaDateKey, jakartaPeriodBounds } from './executiveReport.js';
+import { WorkflowError } from './workflowService.js';
 
 export type AssistantMessage = { role: 'user' | 'assistant'; content: string };
 

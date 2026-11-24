@@ -1,4 +1,4 @@
-import type { OfficeDivision, TicketCategory, TicketDivision } from './workflowTypes';
+import type { OfficeDivision, TicketCategory, TicketDivision } from './workflowTypes.js';
 
 export const STAFF = [
   { id: 'arka', name: 'Arka', division: 'paud', role: 'Layanan klien, bug & retensi Siput PAUD' },

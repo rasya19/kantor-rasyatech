@@ -1,5 +1,5 @@
-import type { OfficeDivision } from '../../src/workflowTypes';
-import { openRouterModel } from './openrouter';
+import type { OfficeDivision } from '../../src/workflowTypes.js';
+import { openRouterModel } from './openrouter.js';
 
 export type AiSelection = { provider: 'openrouter'; model: string };
 

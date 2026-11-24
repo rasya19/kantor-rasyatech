@@ -1,12 +1,12 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { prisma } from '../lib/prisma';
-import { enqueueDigitalProductResearch, isDailyDigitalProductResearchJob, researchProduct } from '../services/businessResearch';
-import { enqueueOpportunitySprint, isOpportunitySprintJob, sourceForOpportunityJob } from '../services/opportunityFlow';
-import { buildExecutiveReport, isLeadStatus, jakartaDateKey, jakartaPeriodBounds, type ReportPeriod } from '../services/executiveReport';
-import { WorkflowError } from '../services/workflowService';
-import { wakeJobWorker } from '../services/jobService';
-import { getUsdIdrRate } from '../services/exchangeRate';
-import { getOpenRouterCredits, getOpenRouterKeyBudget } from '../services/openrouter';
+import { prisma } from '../lib/prisma.js';
+import { enqueueDigitalProductResearch, isDailyDigitalProductResearchJob, researchProduct } from '../services/businessResearch.js';
+import { enqueueOpportunitySprint, isOpportunitySprintJob, sourceForOpportunityJob } from '../services/opportunityFlow.js';
+import { buildExecutiveReport, isLeadStatus, jakartaDateKey, jakartaPeriodBounds, type ReportPeriod } from '../services/executiveReport.js';
+import { WorkflowError } from '../services/workflowService.js';
+import { wakeJobWorker } from '../services/jobService.js';
+import { getUsdIdrRate } from '../services/exchangeRate.js';
+import { getOpenRouterCredits, getOpenRouterKeyBudget } from '../services/openrouter.js';
 
 const router = Router();
 const products = ['paud', 'posyandu', 'scanbite', 'konter', 'lorisan', 'digital', 'other'];

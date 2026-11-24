@@ -1,4 +1,4 @@
-import { generateLicenseCode } from './licenseCode';
+import { generateLicenseCode } from './licenseCode.js';
 
 export function normalizeWarungName(name: string): string {
   return name.trim().toLowerCase();

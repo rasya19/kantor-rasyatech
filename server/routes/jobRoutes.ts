@@ -1,11 +1,11 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
-import { prisma } from '../lib/prisma';
-import { listJobs, processNextJob, wakeJobWorker } from '../services/jobService';
-import { WorkflowError } from '../services/workflowService';
-import { getStaff, ticketStaff } from '../../src/staff';
-import { isOfficeDivision } from '../../src/workflowTypes';
-import type { TicketCategory, TicketDivision } from '../../src/workflowTypes';
-import { createContentFlow, forwardContentStage } from '../services/contentFlow';
+import { prisma } from '../lib/prisma.js';
+import { listJobs, processNextJob, wakeJobWorker } from '../services/jobService.js';
+import { WorkflowError } from '../services/workflowService.js';
+import { getStaff, ticketStaff } from '../../src/staff.js';
+import { isOfficeDivision } from '../../src/workflowTypes.js';
+import type { TicketCategory, TicketDivision } from '../../src/workflowTypes.js';
+import { createContentFlow, forwardContentStage } from '../services/contentFlow.js';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
 

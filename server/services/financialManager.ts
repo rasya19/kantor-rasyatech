@@ -1,6 +1,6 @@
-import { prisma } from '../lib/prisma';
-import { buildExecutiveReport, jakartaDateKey, jakartaPeriodBounds, type ReportPeriod } from './executiveReport';
-import { getUsdIdrRate } from './exchangeRate';
+import { prisma } from '../lib/prisma.js';
+import { buildExecutiveReport, jakartaDateKey, jakartaPeriodBounds, type ReportPeriod } from './executiveReport.js';
+import { getUsdIdrRate } from './exchangeRate.js';
 
 const periods: { key: ReportPeriod; label: string }[] = [
   { key: 'day', label: 'HARIAN' },

@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
-import type { WorkDraft } from '../../src/workflowTypes';
+import { prisma } from '../lib/prisma.js';
+import type { WorkDraft } from '../../src/workflowTypes.js';
 
 const prefix = 'weekly-research-';
 const manualPrefix = 'manual-research-';

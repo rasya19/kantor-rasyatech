@@ -1,5 +1,5 @@
 import type { Prisma } from '@prisma/client';
-import type { validateWarungLicense } from '../../src/lib/warungLicense';
+import type { validateWarungLicense } from '../../src/lib/warungLicense.js';
 
 export async function recordWarungLicense(tx: Prisma.TransactionClient, input: ReturnType<typeof validateWarungLicense>) {
   const created = await tx.warung.createMany({

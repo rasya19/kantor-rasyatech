@@ -1,17 +1,17 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
-import { getStaff } from '../../src/staff';
-import { isOfficeDivision } from '../../src/workflowTypes';
-import type { OfficeJob, WorkDraft } from '../../src/workflowTypes';
-import { generateReportWithDetails } from './workflowService';
-import { forwardContentStage } from './contentFlow';
-import { contentPackageInstruction, contentPackageProblems } from './contentPackage';
-import { generateDigitalProductResearch, generateProductResearch, isDigitalProductResearchJob } from './businessResearch';
-import { forwardOpportunityResearch, isOpportunityResearchJob, sourceForOpportunityJob } from './opportunityFlow';
-import { digitalProductPackageProblems, sourceDraftForCreatorFollowup } from './creatorFollowup';
-import { isDigitalProductResearchDraftId } from '../../src/workflowTypes';
-import { generateFinancialManagerReport } from './financialManager';
+import { prisma } from '../lib/prisma.js';
+import { getStaff } from '../../src/staff.js';
+import { isOfficeDivision } from '../../src/workflowTypes.js';
+import type { OfficeJob, WorkDraft } from '../../src/workflowTypes.js';
+import { generateReportWithDetails } from './workflowService.js';
+import { forwardContentStage } from './contentFlow.js';
+import { contentPackageInstruction, contentPackageProblems } from './contentPackage.js';
+import { generateDigitalProductResearch, generateProductResearch, isDigitalProductResearchJob } from './businessResearch.js';
+import { forwardOpportunityResearch, isOpportunityResearchJob, sourceForOpportunityJob } from './opportunityFlow.js';
+import { digitalProductPackageProblems, sourceDraftForCreatorFollowup } from './creatorFollowup.js';
+import { isDigitalProductResearchDraftId } from '../../src/workflowTypes.js';
+import { generateFinancialManagerReport } from './financialManager.js';
 
 const publicFields = {
   id: true, division: true, staffId: true, title: true, status: true,

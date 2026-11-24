@@ -1,9 +1,9 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
-import { companyMissionInstruction, currentWibDate, WorkflowError } from './workflowService';
-import { generateOpenRouter, OpenRouterError } from './openrouter';
-import type { WorkDraft } from '../../src/workflowTypes';
+import { prisma } from '../lib/prisma.js';
+import { companyMissionInstruction, currentWibDate, WorkflowError } from './workflowService.js';
+import { generateOpenRouter, OpenRouterError } from './openrouter.js';
+import type { WorkDraft } from '../../src/workflowTypes.js';
 
 export const opportunityResearchTimeoutMs = 150_000;
 const digitalProductResearchPrefix = 'digital-product-research-';

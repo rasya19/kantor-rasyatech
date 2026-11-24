@@ -1,4 +1,4 @@
-import { digitalProductIdeaJobId } from '../../src/lib/digitalProductIdeas';
+import { digitalProductIdeaJobId } from '../../src/lib/digitalProductIdeas.js';
 
 export const creatorFollowupSuffix = ':creator-followup';
 

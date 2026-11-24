@@ -9,5 +9,3 @@ video-storage/
 !.env.example
 
 .vercel
-api/_bundle.cjs
-.env*

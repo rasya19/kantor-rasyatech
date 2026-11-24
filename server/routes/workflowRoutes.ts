@@ -1,22 +1,22 @@
 import { Router, type Request, type Response, type NextFunction } from 'express';
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
-import { createContentDraft, createDraft, createTicketDraft, generateReportWithDetails, WorkflowError } from '../services/workflowService';
-import { getActivitySnapshot, trackActivity } from '../services/activityService';
-import { contentPackageInstruction, contentPackageProblems } from '../services/contentPackage';
-import { extractVideoIdeas } from '../../src/lib/videoIdeas';
-import { generateOfficeAssistantReply, type AssistantMessage } from '../services/officeAssistant';
-import { creatorFollowupInstruction, digitalProductFollowupJob, creatorFollowupJobId, mandateRequestsContent } from '../services/creatorFollowup';
-import { digitalProductIdeaKey } from '../../src/lib/digitalProductIdeas';
-import { createContentFlow } from '../services/contentFlow';
-import { videoPath, wakeVideoWorker } from '../services/videoService';
-import { wakeJobWorker } from '../services/jobService';
-import { adminConfigured, adminCookie, adminSessionFromCookie, clearAdminCookie, createAdminSession, isValidAdminSession, verifyAdminPassword } from '../services/adminAuth';
-import { getVideoRuntimeConfig, setVideoEnabled, videoEnabled } from '../services/videoRuntimeConfig';
-import { getOpenRouterKeyBudget } from '../services/openrouter';
-import type { Ticket, TicketCategory, TicketDivision, TicketStatus, WorkDraft } from '../../src/workflowTypes';
-import { isDigitalProductResearchDraftId, isOfficeDivision } from '../../src/workflowTypes';
+import { prisma } from '../lib/prisma.js';
+import { createContentDraft, createDraft, createTicketDraft, generateReportWithDetails, WorkflowError } from '../services/workflowService.js';
+import { getActivitySnapshot, trackActivity } from '../services/activityService.js';
+import { contentPackageInstruction, contentPackageProblems } from '../services/contentPackage.js';
+import { extractVideoIdeas } from '../../src/lib/videoIdeas.js';
+import { generateOfficeAssistantReply, type AssistantMessage } from '../services/officeAssistant.js';
+import { creatorFollowupInstruction, digitalProductFollowupJob, creatorFollowupJobId, mandateRequestsContent } from '../services/creatorFollowup.js';
+import { digitalProductIdeaKey } from '../../src/lib/digitalProductIdeas.js';
+import { createContentFlow } from '../services/contentFlow.js';
+import { videoPath, wakeVideoWorker } from '../services/videoService.js';
+import { wakeJobWorker } from '../services/jobService.js';
+import { adminConfigured, adminCookie, adminSessionFromCookie, clearAdminCookie, createAdminSession, isValidAdminSession, verifyAdminPassword } from '../services/adminAuth.js';
+import { getVideoRuntimeConfig, setVideoEnabled, videoEnabled } from '../services/videoRuntimeConfig.js';
+import { getOpenRouterKeyBudget } from '../services/openrouter.js';
+import type { Ticket, TicketCategory, TicketDivision, TicketStatus, WorkDraft } from '../../src/workflowTypes.js';
+import { isDigitalProductResearchDraftId, isOfficeDivision } from '../../src/workflowTypes.js';
 
 const router = Router();
 const asyncRoute = (fn: (req: Request, res: Response) => Promise<void>) =>

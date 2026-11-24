@@ -1,7 +1,7 @@
 import { Router, type NextFunction, type Request, type Response } from 'express';
-import { prisma } from '../lib/prisma';
-import { validateWarungLicense } from '../../src/lib/warungLicense';
-import { recordWarungLicense } from '../services/warungLicenseService';
+import { prisma } from '../lib/prisma.js';
+import { validateWarungLicense } from '../../src/lib/warungLicense.js';
+import { recordWarungLicense } from '../services/warungLicenseService.js';
 
 const router = Router();
 const route = (handler: (req: Request, res: Response) => Promise<void>) =>

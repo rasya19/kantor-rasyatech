@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { ActivityAction, ActivitySnapshot, OfficeDivision } from '../../src/workflowTypes';
-import { OFFICE_DIVISIONS } from '../../src/workflowTypes';
+import type { ActivityAction, ActivitySnapshot, OfficeDivision } from '../../src/workflowTypes.js';
+import { OFFICE_DIVISIONS } from '../../src/workflowTypes.js';
 
 const running = new Map<string, { division: OfficeDivision; action: ActivityAction }>();
 

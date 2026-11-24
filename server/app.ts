@@ -1,9 +1,9 @@
 import express, { type Request, type Response } from 'express';
-import { prisma } from './lib/prisma';
-import workflowRoutes from './routes/workflowRoutes';
-import jobRoutes from './routes/jobRoutes';
-import businessRoutes from './routes/businessRoutes';
-import warungRoutes from './routes/warungRoutes';
+import { prisma } from './lib/prisma.js';
+import workflowRoutes from './routes/workflowRoutes.js';
+import jobRoutes from './routes/jobRoutes.js';
+import businessRoutes from './routes/businessRoutes.js';
+import warungRoutes from './routes/warungRoutes.js';
 
 export function createApiApp(): express.Express {
   const app = express();

@@ -1,5 +1,5 @@
-import type { OfficeDivision } from '../../src/workflowTypes';
-import { prisma } from '../lib/prisma';
+import type { OfficeDivision } from '../../src/workflowTypes.js';
+import { prisma } from '../lib/prisma.js';
 
 const officialBaseUrl = 'https://openrouter.ai/api/v1';
 const defaultModels: Record<OfficeDivision, string> = {

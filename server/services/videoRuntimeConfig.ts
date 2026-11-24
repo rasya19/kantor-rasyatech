@@ -1,5 +1,5 @@
-import { prisma } from '../lib/prisma';
-import { checkBudget, OpenRouterError } from './openrouter';
+import { prisma } from '../lib/prisma.js';
+import { checkBudget, OpenRouterError } from './openrouter.js';
 
 export const approvedVideoBudgetIdr = 100_000;
 const configId = 'global';

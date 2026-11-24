@@ -1,11 +1,11 @@
 import { randomUUID } from 'node:crypto';
 import { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma';
-import { trackActivity } from './activityService';
-import { generateOpenRouter, OpenRouterError } from './openrouter';
-import { createContentFlow } from './contentFlow';
-import { contentPackageInstruction, contentPackageProblems } from './contentPackage';
-import type { OfficeDivision, Ticket, WorkDraft } from '../../src/workflowTypes';
+import { prisma } from '../lib/prisma.js';
+import { trackActivity } from './activityService.js';
+import { generateOpenRouter, OpenRouterError } from './openrouter.js';
+import { createContentFlow } from './contentFlow.js';
+import { contentPackageInstruction, contentPackageProblems } from './contentPackage.js';
+import type { OfficeDivision, Ticket, WorkDraft } from '../../src/workflowTypes.js';
 
 export class WorkflowError extends Error {
   constructor(message: string, public readonly status = 400) {
