@@ -26,5 +26,12 @@ export function createApiApp(): express.Express {
     }
   });
 
+  app.use((err: unknown, _req: Request, res: Response, _next: express.NextFunction) => {
+    console.error('[API Server] Unhandled error:', err);
+    if (res.headersSent) return;
+    const message = err instanceof Error ? err.message : 'Kesalahan internal server.';
+    res.status(500).json({ error: message });
+  });
+
   return app;
 }
